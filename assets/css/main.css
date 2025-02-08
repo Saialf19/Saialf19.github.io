@@ -1273,3 +1273,11 @@ section,
 .starter-section {
   /* Add your styles here */
 }
+.col-lg-5{
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  gap: 30px;
+
+
+}
