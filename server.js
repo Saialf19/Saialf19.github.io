@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const sql = require('mssql');
 const path = require('path');
@@ -8,12 +9,13 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
 const dbConfig = {
-  user: 'sa',
-  password: 'TuContraseñaSQL',
-  server: 'localhost',
-  database: 'AHPDB',
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  server: process.env.DB_SERVER || 'localhost',
+  database: process.env.DB_NAME,
   options: { trustServerCertificate: true }
 };
+
 
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
