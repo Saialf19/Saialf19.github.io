@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Configuración AHP</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <style>
+    .ahp-step { font-size: 0.9rem; background: #f8f9fa; padding: 10px; border: 1px solid #ccc; margin-top: 10px; }
+    table td input { min-width: 50px; text-align: center; }
+  </style>
+</head>
+<body class="p-5">
+  <h2 class="mb-4">Configura tu análisis AHP</h2>
+  <!-- Formulario para ingresar número de criterios y alternativas -->
+  <form id="config-form">
+    <div class="row mb-3">
+      <div class="col">
+        <label>Número de criterios</label>
+        <input type="number" class="form-control" id="numCriterios" min="1" required>
+      </div>
+      <div class="col">
+        <label>Número de alternativas</label>
+        <input type="number" class="form-control" id="numAlternativas" min="1" required>
+      </div>
+    </div>
+    <button type="submit" class="btn btn-primary">Generar formulario</button>
+  </form>
+
+  <!-- Formulario para ingresar nombres de criterios y alternativas -->
+  <form id="datos-form" class="mt-4 d-none">
+    <h4>Ingrese los nombres de criterios y alternativas</h4>
+    <div id="criterios-container"></div>
+    <div id="alternativas-container" class="mt-3"></div>
+    <button type="submit" class="btn btn-success mt-3">Continuar</button>
+  </form>
+
+  <!-- Contenedor para matrices y resultados -->
+  <div id="matriz-container" class="mt-5 d-none">
+    <h4>Matriz de comparación de criterios</h4>
+    <form id="matriz-form"></form>
+    <div id="explicacion-criterios" class="ahp-step"></div>
+    <div id="alternativas-matrices"></div>
+    <div id="explicacion-alternativas"></div>
+    <button id="calcular-btn" class="btn btn-info mt-3">Calcular Pesos</button>
+    <div id="resultados" class="mt-4"></div>
+    <div id="excel-descarga" class="mt-3"></div>
+  </div>
+
+  <script>
+    // Referencias a elementos del DOM
+    const configForm = document.getElementById('config-form');
+    const datosForm = document.getElementById('datos-form');
+    const criteriosContainer = document.getElementById('criterios-container');
+    const alternativasContainer = document.getElementById('alternativas-container');
+    const matrizContainer = document.getElementById('matriz-container');
+    const matrizForm = document.getElementById('matriz-form');
+    const alternativasMatrices = document.getElementById('alternativas-matrices');
+    const calcularBtn = document.getElementById('calcular-btn');
+    const resultadosDiv = document.getElementById('resultados');
+    const explicacionCriterios = document.getElementById('explicacion-criterios');
+    const explicacionAlternativas = document.getElementById('explicacion-alternativas');
+    const excelDescarga = document.getElementById('excel-descarga');
+
+    // Variables globales para almacenar criterios y alternativas
+    let criterios = [];
+    let alternativas = [];
+
+    // Evento: Al enviar el formulario de configuración (número de criterios y alternativas)
+    configForm.addEventListener('submit', function (e) {
+      e.preventDefault();
+      criteriosContainer.innerHTML = '';
+      alternativasContainer.innerHTML = '';
+
+      const numC = parseInt(document.getElementById('numCriterios').value);
+      const numA = parseInt(document.getElementById('numAlternativas').value);
+
+      // Genera inputs para los nombres de los criterios
+      for (let i = 0; i < numC; i++) {
+        const input = document.createElement('input');
+        input.name = `criterio${i}`;
+        input.placeholder = `Criterio ${i + 1}`;
+        input.className = 'form-control mb-2';
+        criteriosContainer.appendChild(input);
+      }
+
+      // Genera inputs para los nombres de las alternativas
+      for (let i = 0; i < numA; i++) {
+        const input = document.createElement('input');
+        input.name = `alternativa${i}`;
+        input.placeholder = `Alternativa ${i + 1}`;
+        input.className = 'form-control mb-2';
+        alternativasContainer.appendChild(input);
+      }
+
+      // Muestra el formulario para ingresar nombres
+      datosForm.classList.remove('d-none');
+    });
+
+    // Evento: Al enviar el formulario de nombres de criterios y alternativas
+    datosForm.addEventListener('submit', function (e) {
+      e.preventDefault();
+      const formData = new FormData(datosForm);
+      // Obtiene los nombres de criterios y alternativas
+      criterios = Object.keys(Object.fromEntries(formData.entries())).filter(k => k.startsWith('criterio')).map(k => formData.get(k));
+      alternativas = Object.keys(Object.fromEntries(formData.entries())).filter(k => k.startsWith('alternativa')).map(k => formData.get(k));
+
+      // Genera la matriz de comparación de criterios y las matrices de alternativas
+      generarMatrizComparacion();
+      generarMatricesAlternativas();
+      // Muestra el contenedor de matrices
+      matrizContainer.classList.remove('d-none');
+    });
+
+    // Función: Genera la tabla de comparación de criterios
+    function generarMatrizComparacion() {
+      matrizForm.innerHTML = '';
+      const table = document.createElement('table');
+      table.className = 'table table-bordered';
+
+      const thead = document.createElement('thead');
+      const headRow = document.createElement('tr');
+      headRow.innerHTML = '<th></th>' + criterios.map(c => `<th>${c}</th>`).join('');
+      thead.appendChild(headRow);
+      table.appendChild(thead);
+
+      const tbody = document.createElement('tbody');
+      for (let i = 0; i < criterios.length; i++) {
+        const row = document.createElement('tr');
+        row.innerHTML = `<th>${criterios[i]}</th>`;
+        for (let j = 0; j < criterios.length; j++) {
+          const input = document.createElement('input');
+          input.type = 'number';
+          input.step = 'any';
+          input.min = '0.111';
+          input.max = '9';
+          input.name = `comp_${i}_${j}`;
+          input.className = 'form-control';
+          input.value = i === j ? 1 : ''; // Diagonal principal en 1
+          const td = document.createElement('td');
+          td.appendChild(input);
+          row.appendChild(td);
+        }
+        tbody.appendChild(row);
+      }
+      table.appendChild(tbody);
+      matrizForm.appendChild(table);
+    }
+
+    // Función: Genera las matrices de comparación de alternativas para cada criterio
+    function generarMatricesAlternativas() {
+      alternativasMatrices.innerHTML = '';
+      criterios.forEach((criterio, index) => {
+        const div = document.createElement('div');
+        div.className = 'mt-4';
+        div.innerHTML = `<h5>Comparación de alternativas para: ${criterio}</h5>`;
+        const table = document.createElement('table');
+        table.className = 'table table-bordered';
+
+        const thead = document.createElement('thead');
+        const headRow = document.createElement('tr');
+        headRow.innerHTML = '<th></th>' + alternativas.map(a => `<th>${a}</th>`).join('');
+        thead.appendChild(headRow);
+        table.appendChild(thead);
+
+        const tbody = document.createElement('tbody');
+        for (let i = 0; i < alternativas.length; i++) {
+          const row = document.createElement('tr');
+          row.innerHTML = `<th>${alternativas[i]}</th>`;
+          for (let j = 0; j < alternativas.length; j++) {
+            const input = document.createElement('input');
+            input.type = 'number';
+            input.step = 'any';
+            input.min = '0.111';
+            input.max = '9';
+            input.name = `alt_${index}_${i}_${j}`;
+            input.className = 'form-control';
+            input.value = i === j ? 1 : ''; // Diagonal principal en 1
+            const td = document.createElement('td');
+            td.appendChild(input);
+            row.appendChild(td);
+          }
+          tbody.appendChild(row);
+        }
+        table.appendChild(tbody);
+        div.appendChild(table);
+        // Espacio para mostrar explicación del cálculo de pesos de alternativas
+        div.innerHTML += `<div class='ahp-step' id='explicacion_alt_${index}'></div>`;
+        alternativasMatrices.appendChild(div);
+      });
+    }
+
+    // Evento: Al hacer clic en "Calcular Pesos"
+    calcularBtn.addEventListener('click', async function () {
+      // Obtiene la matriz de comparación de criterios desde los inputs
+      const formData = new FormData(matrizForm);
+      const matrix = [];
+      for (let i = 0; i < criterios.length; i++) {
+        matrix[i] = [];
+        for (let j = 0; j < criterios.length; j++) {
+          matrix[i][j] = parseFloat(formData.get(`comp_${i}_${j}`)) || 1;
+        }
+      }
+
+      // Calcula la suma de cada columna
+      const colSums = Array(criterios.length).fill(0);
+      for (let j = 0; j < criterios.length; j++)
+        for (let i = 0; i < criterios.length; i++) colSums[j] += matrix[i][j];
+
+      // Normaliza la matriz dividiendo cada elemento por la suma de su columna
+      const normMatrix = matrix.map(row => row.map((val, j) => val / colSums[j]));
+      // Calcula los pesos de los criterios (promedio de cada fila de la matriz normalizada)
+      const pesosCriterios = normMatrix.map(row => row.reduce((a, b) => a + b, 0) / criterios.length);
+
+      // Muestra explicación del cálculo de pesos de criterios
+      let texto = `<strong>Suma columnas:</strong> [${colSums.map(x => x.toFixed(3)).join(', ')}]<br>`;
+      texto += `<strong>Matriz normalizada:</strong><br>`;
+      texto += normMatrix.map(row => row.map(val => val.toFixed(3)).join(' | ')).join('<br>') + '<br>';
+      texto += `<strong>Pesos:</strong> [${pesosCriterios.map(p => p.toFixed(4)).join(', ')}]`;
+      explicacionCriterios.innerHTML = texto;
+
+      // Para cada criterio, calcula los pesos de las alternativas
+      const pesosAlternativasPorCriterio = criterios.map((_, cIndex) => {
+        // Obtiene la matriz de comparación de alternativas para este criterio
+        const altMatrix = [];
+        for (let i = 0; i < alternativas.length; i++) {
+          altMatrix[i] = [];
+          for (let j = 0; j < alternativas.length; j++) {
+            const val = parseFloat(document.querySelector(`[name=alt_${cIndex}_${i}_${j}]`).value) || 1;
+            altMatrix[i][j] = val;
+          }
+        }
+
+        // Calcula la suma de cada columna
+        const colSum = Array(alternativas.length).fill(0);
+        for (let j = 0; j < alternativas.length; j++)
+          for (let i = 0; i < alternativas.length; i++) colSum[j] += altMatrix[i][j];
+
+        // Normaliza la matriz de alternativas
+        const norm = altMatrix.map(row => row.map((val, j) => val / colSum[j]));
+        // Calcula los pesos de alternativas (promedio de cada fila)
+        const pesos = norm.map(row => row.reduce((a, b) => a + b, 0) / alternativas.length);
+
+        // Muestra explicación del cálculo de pesos de alternativas para este criterio
+        const paso = `<strong>Suma columnas:</strong> [${colSum.map(x => x.toFixed(3)).join(', ')}]<br>` +
+          `<strong>Matriz normalizada:</strong><br>` +
+          norm.map(row => row.map(v => v.toFixed(3)).join(' | ')).join('<br>') + '<br>' +
+          `<strong>Pesos:</strong> [${pesos.map(p => p.toFixed(4)).join(', ')}]`;
+        document.getElementById(`explicacion_alt_${cIndex}`).innerHTML = paso;
+
+        return pesos;
+      });
+
+      // Calcula el puntaje final de cada alternativa (suma ponderada)
+      const puntajesFinales = alternativas.map((_, i) => {
+        return criterios.reduce((total, _, j) => {
+          return total + pesosCriterios[j] * pesosAlternativasPorCriterio[j][i];
+        }, 0);
+      });
+
+      // Muestra el resultado final detallado
+      let finalTexto = `<h5>Resultado Final:</h5><ul>`;
+      alternativas.forEach((alt, i) => {
+        let detalle = criterios.map((_, j) => `(${pesosCriterios[j].toFixed(4)}×${pesosAlternativasPorCriterio[j][i].toFixed(4)})`).join(' + ');
+        finalTexto += `<li><strong>${alt}</strong>: ${detalle} = <strong>${puntajesFinales[i].toFixed(4)}</strong></li>`;
+      });
+      finalTexto += '</ul>';
+      resultadosDiv.innerHTML = finalTexto;
+
+      // Prepara los datos para enviar al backend y generar el Excel
+      const payload = {
+        criterios,
+        alternativas,
+        matrizCriterios: matrix,
+        matrizAlternativas: pesosAlternativasPorCriterio,
+        pesosCriterios,
+        resultadoFinal: puntajesFinales
+      };
+
+      // Llama al backend para generar y descargar el archivo Excel
+      const response = await fetch('/exportarAHP', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      // Si la respuesta es exitosa, muestra el botón de descarga
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'AHP_Resultados.xlsx';
+        link.className = 'btn btn-success mt-3';
+        link.innerText = 'Descargar Resultados en Excel';
+        excelDescarga.innerHTML = '';
+        excelDescarga.appendChild(link);
+      } else {
+        excelDescarga.innerHTML = '<div class="text-danger">Error al generar el archivo Excel.</div>';
+      }
+    });
+  </script>
+</body>
+</html>

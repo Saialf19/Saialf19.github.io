@@ -1,0 +1,44 @@
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>AHP Web</title>
+  <link rel="stylesheet" href="style.css" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      const button = document.getElementById("start-btn");
+      if (button) {
+        button.addEventListener("click", function (e) {
+          e.preventDefault();
+          button.classList.add("animate-click");
+          setTimeout(() => {
+            window.location.href = button.getAttribute("href");
+          }, 500);
+        });
+      }
+    });
+  </script>
+</head>
+<body>
+  <div class="full-screen-container d-flex flex-column flex-md-row">
+
+    <!-- Imagen como fondo a la izquierda -->
+    <div class="left-half bg-facultad animate-fade">
+      <div class="gradient-overlay"></div>
+    </div>
+
+    <!-- Contenido derecho -->
+    <div class="right-half d-flex justify-content-center align-items-center">
+      <div class="content-box text-center p-4 rounded shadow animate-slide">
+        <img src="img/unmsm.png" alt="UNMSM" class="unmsm-logo mb-3 animate-zoom">
+        <h1 class="fw-bold">Aplicación del Método AHP</h1>
+        <p class="lead">Sistema de soporte para decisiones multicriterio</p>
+        <a href="ahp.html" id="start-btn" class="btn btn-outline-dark btn-lg mt-3">Iniciar Evaluación</a>
+      </div>
+    </div>
+
+  </div>
+</body>
+</html>
