@@ -36,36 +36,35 @@
     <div id="explicacion-criterios" class="ahp-step"></div>
     <div id="matrices-subcriterios"></div>
     <div id="matrices-alternativas"></div>
+    <button id="calcular-btn" class="btn btn-info mt-3">Calcular Pesos</button>
+    <button id="limpiar-btn" class="btn btn-secondary mt-3 ms-2">Limpiar Todo</button>
     <div id="resultados" class="mt-4"></div>
     <div id="excel-descarga" class="mt-3"></div>
-    <button id="limpiar-btn" class="btn btn-secondary mt-3 ms-2">Limpiar Todo</button>
   </div>
 
 <script>
-// Escala AHP permitida
 const allowedValues = [
   1/9, 1/8, 1/7, 1/6, 1/5, 1/4, 1/3, 1/2,
   1, 2, 3, 4, 5, 6, 7, 8, 9
 ];
 
-// Referencias a elementos del DOM
 const configForm = document.getElementById('config-form');
 const datosForm = document.getElementById('datos-form');
 const matrizContainer = document.getElementById('matriz-container');
 const matrizForm = document.getElementById('matriz-form');
 const matricesSubcriterios = document.getElementById('matrices-subcriterios');
 const matricesAlternativas = document.getElementById('matrices-alternativas');
-const resultadosDiv = document.getElementById('resultados');
-const excelDescarga = document.getElementById('excel-descarga');
+const calcularBtn = document.getElementById('calcular-btn');
 const limpiarBtn = document.getElementById('limpiar-btn');
+const resultadosDiv = document.getElementById('resultados');
+const explicacionCriterios = document.getElementById('explicacion-criterios');
+const excelDescarga = document.getElementById('excel-descarga');
 
-// Variables globales
 let criterios = [];
 let alternativas = [];
-let subcriteriosPorCriterio = {}; // {criterio: [sub1, sub2, ...]}
-let numSubcriteriosPorCriterio = {}; // {criterio: cantidad}
+let subcriteriosPorCriterio = {};
+let numSubcriteriosPorCriterio = {};
 
-// Paso 1: Ingreso de criterios y alternativas
 configForm.addEventListener('submit', function (e) {
   e.preventDefault();
   const numC = parseInt(document.getElementById('numCriterios').value);
@@ -149,22 +148,9 @@ datosForm.addEventListener('submit', function (e) {
       generarMatricesSubcriterios();
       generarMatricesAlternativasSub();
       matrizContainer.classList.remove('d-none');
-      calcularAHP(); // Cálculo automático
     };
   };
 });
-
-// --- Función para recalcular automáticamente al cambiar cualquier select ---
-function addAutoCalcToAllSelects() {
-  document.querySelectorAll('select.form-select').forEach(sel => {
-    if (!sel.dataset.autocalc) {
-      sel.addEventListener('change', () => {
-        calcularAHP();
-      });
-      sel.dataset.autocalc = "1";
-    }
-  });
-}
 
 // --- MATRIZ DE CRITERIOS ---
 function generarMatrizComparacion() {
@@ -203,7 +189,6 @@ function generarMatrizComparacion() {
           if (oppSelect) {
             oppSelect.value = recVal;
           }
-          calcularAHP();
         });
         td.appendChild(select);
       } else {
@@ -225,7 +210,6 @@ function generarMatrizComparacion() {
   }
   table.appendChild(tbody);
   matrizForm.appendChild(table);
-  addAutoCalcToAllSelects();
 }
 
 // --- MATRICES DE SUBCRITERIOS ---
@@ -255,7 +239,6 @@ function generarMatricesSubcriterios() {
     html += `</tbody></table><div class='ahp-step' id='explicacion_sub_${idx}'></div></div>`;
     matricesSubcriterios.innerHTML += html;
   });
-  addAutoCalcToAllSelects();
 }
 
 // --- MATRICES DE ALTERNATIVAS POR SUBCRITERIO ---
@@ -301,7 +284,6 @@ function generarMatricesAlternativasSub() {
               if (oppSelect) {
                 oppSelect.value = recVal;
               }
-              calcularAHP();
             });
             td.appendChild(select);
           } else {
@@ -327,11 +309,10 @@ function generarMatricesAlternativasSub() {
       matricesAlternativas.appendChild(div);
     });
   });
-  addAutoCalcToAllSelects();
 }
 
 // --- CÁLCULO PRINCIPAL ---
-function calcularAHP() {
+calcularBtn.addEventListener('click', function () {
   // --- Criterios ---
   const matrix = [];
   for (let i = 0; i < criterios.length; i++) {
@@ -439,7 +420,7 @@ function calcularAHP() {
   });
   finalTexto += '</ul>';
   resultadosDiv.innerHTML = finalTexto;
-}
+});
 
 // Botón para limpiar todo y reiniciar el análisis
 limpiarBtn.addEventListener('click', function () {
