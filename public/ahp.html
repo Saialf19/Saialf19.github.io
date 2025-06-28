@@ -115,10 +115,21 @@ datosForm.addEventListener('submit', function (e) {
   // Genera la matriz de comparación de criterios y las matrices de alternativas
   generarMatrizComparacion();
   generarMatricesAlternativas();
-  // Muestra el contenedor de matrices
   matrizContainer.classList.remove('d-none');
   calcularBtn.click(); // Calcula automáticamente al mostrar matrices
 });
+
+// Función auxiliar para recalcular automáticamente al cambiar cualquier select
+function addAutoCalcToAllSelects() {
+  document.querySelectorAll('select.form-select').forEach(sel => {
+    if (!sel.dataset.autocalc) {
+      sel.addEventListener('change', () => {
+        calcularBtn.click();
+      });
+      sel.dataset.autocalc = "1";
+    }
+  });
+}
 
 // Función: Genera la tabla de comparación de criterios (recíproca y restringida)
 function generarMatrizComparacion() {
@@ -150,16 +161,15 @@ function generarMatrizComparacion() {
           option.text = val === 1 ? '1 (Igual)' : val < 1 ? `1/${Math.round(1/val)}` : val;
           select.appendChild(option);
         });
-        select.value = 1; // Valor inicial
+        select.value = 1;
         select.addEventListener('change', function () {
           const recVal = 1 / parseFloat(this.value);
           const oppSelect = document.querySelector(`[name=comp_${j}_${i}]`);
           if (oppSelect) {
             oppSelect.value = recVal;
-            // Dispara el evento change en la inversa para mantener sincronía
             oppSelect.dispatchEvent(new Event('change'));
           }
-          calcularBtn.click(); // Calcula automáticamente
+          calcularBtn.click();
         });
         td.appendChild(select);
       } else {
@@ -182,6 +192,7 @@ function generarMatrizComparacion() {
   }
   table.appendChild(tbody);
   matrizForm.appendChild(table);
+  addAutoCalcToAllSelects();
 }
 
 // Función: Genera las matrices de comparación de alternativas (recíproca y restringida)
@@ -252,6 +263,7 @@ function generarMatricesAlternativas() {
     div.innerHTML += `<div class='ahp-step' id='explicacion_alt_${index}'></div>`;
     alternativasMatrices.appendChild(div);
   });
+  addAutoCalcToAllSelects();
 }
 
 // Evento: Al hacer clic en "Calcular Pesos"
