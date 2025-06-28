@@ -250,24 +250,24 @@ calcularBtn.addEventListener('click', async function () {
   for (let i = 0; i < criterios.length; i++) {
     matrix[i] = [];
     for (let j = 0; j < criterios.length; j++) {
-      matrix[i][j] = parseFloat(formData.get(`comp_${i}_${j}`)) || 1;
+      matrix[i][j] = Number(formData.get(`comp_${i}_${j}`)) || 1;
     }
   }
 
   // Calcula la suma de cada columna
   const colSums = Array(criterios.length).fill(0);
   for (let j = 0; j < criterios.length; j++)
-    for (let i = 0; i < criterios.length; i++) colSums[j] += matrix[i][j];
+    for (let i = 0; i < criterios.length; i++) colSums[j] += Number(matrix[i][j]);
 
   // Normaliza la matriz dividiendo cada elemento por la suma de su columna
-  const normMatrix = matrix.map(row => row.map((val, j) => val / colSums[j]));
+  const normMatrix = matrix.map(row => row.map((val, j) => Number(val) / colSums[j]));
   // Calcula los pesos de los criterios (promedio de cada fila de la matriz normalizada)
   const pesosCriterios = normMatrix.map(row => row.reduce((a, b) => a + b, 0) / criterios.length);
 
   // --- Cálculo del vector de autoridad y RC (Razón de Consistencia) ---
   // 1. Multiplica la matriz original por el vector de pesos
   const Aw = matrix.map(row =>
-    row.reduce((sum, val, j) => sum + val * pesosCriterios[j], 0)
+    row.reduce((sum, val, j) => sum + Number(val) * pesosCriterios[j], 0)
   );
   // 2. Divide cada elemento de Aw por el peso correspondiente
   const Aw_div_w = Aw.map((val, i) => val / pesosCriterios[i]);
@@ -306,17 +306,17 @@ calcularBtn.addEventListener('click', async function () {
     for (let i = 0; i < alternativas.length; i++) {
       altMatrix[i] = [];
       for (let j = 0; j < alternativas.length; j++) {
-        altMatrix[i][j] = parseFloat(document.querySelector(`[name=alt_${cIndex}_${i}_${j}]`).value) || 1;
+        altMatrix[i][j] = Number(document.querySelector(`[name=alt_${cIndex}_${i}_${j}]`).value) || 1;
       }
     }
 
     // Calcula la suma de cada columna
     const colSum = Array(alternativas.length).fill(0);
     for (let j = 0; j < alternativas.length; j++)
-      for (let i = 0; i < alternativas.length; i++) colSum[j] += altMatrix[i][j];
+      for (let i = 0; i < alternativas.length; i++) colSum[j] += Number(altMatrix[i][j]);
 
     // Normaliza la matriz de alternativas
-    const norm = altMatrix.map(row => row.map((val, j) => val / colSum[j]));
+    const norm = altMatrix.map(row => row.map((val, j) => Number(val) / colSum[j]));
     // Calcula los pesos de alternativas (promedio de cada fila)
     const pesos = norm.map(row => row.reduce((a, b) => a + b, 0) / alternativas.length);
 
