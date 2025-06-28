@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <title>Configuración AHP</title>
+  <title>Configuración AHP con Subcriterios</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet"/>
   <style>
     .ahp-step { font-size: 0.9rem; background: #f8f9fa; padding: 10px; border: 1px solid #ccc; margin-top: 10px; }
@@ -10,7 +10,7 @@
   </style>
 </head>
 <body class="p-5">
-  <h2 class="mb-4">Configura tu análisis AHP</h2>
+  <h2 class="mb-4">Configura tu análisis AHP con Subcriterios</h2>
   <!-- Formulario para ingresar número de criterios y alternativas -->
   <form id="config-form">
     <div class="row mb-3">
@@ -27,28 +27,22 @@
   </form>
 
   <!-- Formulario para ingresar nombres de criterios y alternativas -->
-  <form id="datos-form" class="mt-4 d-none">
-    <h4>Ingrese los nombres de criterios y alternativas</h4>
-    <div id="criterios-container"></div>
-    <div id="alternativas-container" class="mt-3"></div>
-    <button type="submit" class="btn btn-success mt-3">Continuar</button>
-  </form>
+  <form id="datos-form" class="mt-4 d-none"></form>
 
   <!-- Contenedor para matrices y resultados -->
   <div id="matriz-container" class="mt-5 d-none">
     <h4>Matriz de comparación de criterios</h4>
     <form id="matriz-form"></form>
     <div id="explicacion-criterios" class="ahp-step"></div>
-    <div id="alternativas-matrices"></div>
-    <div id="explicacion-alternativas"></div>
-    <button id="calcular-btn" class="btn btn-info mt-3">Calcular Pesos</button>
-    <button id="limpiar-btn" class="btn btn-secondary mt-3 ms-2">Limpiar Todo</button>
+    <div id="matrices-subcriterios"></div>
+    <div id="matrices-alternativas"></div>
     <div id="resultados" class="mt-4"></div>
     <div id="excel-descarga" class="mt-3"></div>
+    <button id="limpiar-btn" class="btn btn-secondary mt-3 ms-2">Limpiar Todo</button>
   </div>
 
-  <script>
-  // Escala AHP permitida
+<script>
+// Escala AHP permitida
 const allowedValues = [
   1/9, 1/8, 1/7, 1/6, 1/5, 1/4, 1/3, 1/2,
   1, 2, 3, 4, 5, 6, 7, 8, 9
@@ -57,32 +51,35 @@ const allowedValues = [
 // Referencias a elementos del DOM
 const configForm = document.getElementById('config-form');
 const datosForm = document.getElementById('datos-form');
-const criteriosContainer = document.getElementById('criterios-container');
-const alternativasContainer = document.getElementById('alternativas-container');
 const matrizContainer = document.getElementById('matriz-container');
 const matrizForm = document.getElementById('matriz-form');
-const alternativasMatrices = document.getElementById('alternativas-matrices');
-const calcularBtn = document.getElementById('calcular-btn');
-const limpiarBtn = document.getElementById('limpiar-btn');
+const matricesSubcriterios = document.getElementById('matrices-subcriterios');
+const matricesAlternativas = document.getElementById('matrices-alternativas');
 const resultadosDiv = document.getElementById('resultados');
-const explicacionCriterios = document.getElementById('explicacion-criterios');
-const explicacionAlternativas = document.getElementById('explicacion-alternativas');
 const excelDescarga = document.getElementById('excel-descarga');
+const limpiarBtn = document.getElementById('limpiar-btn');
 
-// Variables globales para almacenar criterios y alternativas
+// Variables globales
 let criterios = [];
 let alternativas = [];
+let subcriteriosPorCriterio = {}; // {criterio: [sub1, sub2, ...]}
+let numSubcriteriosPorCriterio = {}; // {criterio: cantidad}
 
-// Evento: Al enviar el formulario de configuración (número de criterios y alternativas)
+// Paso 1: Ingreso de criterios y alternativas
 configForm.addEventListener('submit', function (e) {
   e.preventDefault();
-  criteriosContainer.innerHTML = '';
-  alternativasContainer.innerHTML = '';
-
   const numC = parseInt(document.getElementById('numCriterios').value);
   const numA = parseInt(document.getElementById('numAlternativas').value);
 
-  // Genera inputs para los nombres de los criterios
+  let html = '<h4>Ingrese los nombres de criterios y alternativas</h4>';
+  html += '<div id="criterios-container"></div>';
+  html += '<div id="alternativas-container" class="mt-3"></div>';
+  html += '<button type="submit" class="btn btn-success mt-3">Continuar</button>';
+  datosForm.innerHTML = html;
+  datosForm.classList.remove('d-none');
+
+  // Inputs criterios
+  const criteriosContainer = datosForm.querySelector('#criterios-container');
   for (let i = 0; i < numC; i++) {
     const input = document.createElement('input');
     input.name = `criterio${i}`;
@@ -90,8 +87,8 @@ configForm.addEventListener('submit', function (e) {
     input.className = 'form-control mb-2';
     criteriosContainer.appendChild(input);
   }
-
-  // Genera inputs para los nombres de las alternativas
+  // Inputs alternativas
+  const alternativasContainer = datosForm.querySelector('#alternativas-container');
   for (let i = 0; i < numA; i++) {
     const input = document.createElement('input');
     input.name = `alternativa${i}`;
@@ -99,39 +96,77 @@ configForm.addEventListener('submit', function (e) {
     input.className = 'form-control mb-2';
     alternativasContainer.appendChild(input);
   }
-
-  // Muestra el formulario para ingresar nombres
-  datosForm.classList.remove('d-none');
 });
 
-// Evento: Al enviar el formulario de nombres de criterios y alternativas
+// Paso 2: Ingreso de subcriterios
 datosForm.addEventListener('submit', function (e) {
   e.preventDefault();
   const formData = new FormData(datosForm);
-  // Obtiene los nombres de criterios y alternativas
   criterios = Object.keys(Object.fromEntries(formData.entries())).filter(k => k.startsWith('criterio')).map(k => formData.get(k));
   alternativas = Object.keys(Object.fromEntries(formData.entries())).filter(k => k.startsWith('alternativa')).map(k => formData.get(k));
 
-  // Genera la matriz de comparación de criterios y las matrices de alternativas
-  generarMatrizComparacion();
-  generarMatricesAlternativas();
-  matrizContainer.classList.remove('d-none');
-  calcularBtn.click(); // Calcula automáticamente al mostrar matrices
+  // Pide número de subcriterios por criterio
+  let subFormHtml = '<h4>Subcriterios por criterio</h4>';
+  criterios.forEach((crit, idx) => {
+    subFormHtml += `
+      <div class="mb-2">
+        <label>¿Cuántos subcriterios para <b>${crit}</b>?</label>
+        <input type="number" min="1" max="10" class="form-control" id="numSub_${idx}" value="1" required>
+      </div>
+    `;
+  });
+  subFormHtml += `<button type="button" class="btn btn-primary mt-3" id="continuarSubBtn">Continuar con subcriterios</button>`;
+  datosForm.innerHTML = subFormHtml;
+
+  document.getElementById('continuarSubBtn').onclick = function () {
+    criterios.forEach((crit, idx) => {
+      numSubcriteriosPorCriterio[crit] = parseInt(document.getElementById(`numSub_${idx}`).value);
+    });
+
+    // Pide nombres de subcriterios
+    let subNamesHtml = '<h4>Nombres de subcriterios</h4>';
+    criterios.forEach((crit, idx) => {
+      subNamesHtml += `<div class="mb-2"><b>${crit}</b><br>`;
+      for (let s = 0; s < numSubcriteriosPorCriterio[crit]; s++) {
+        subNamesHtml += `<input type="text" class="form-control mb-1" id="subcrit_${idx}_${s}" placeholder="Subcriterio ${s + 1}" required>`;
+      }
+      subNamesHtml += '</div>';
+    });
+    subNamesHtml += `<button type="button" class="btn btn-success mt-3" id="continuarMatricesBtn">Continuar</button>`;
+    datosForm.innerHTML = subNamesHtml;
+
+    document.getElementById('continuarMatricesBtn').onclick = function () {
+      subcriteriosPorCriterio = {};
+      criterios.forEach((crit, idx) => {
+        subcriteriosPorCriterio[crit] = [];
+        for (let s = 0; s < numSubcriteriosPorCriterio[crit]; s++) {
+          subcriteriosPorCriterio[crit].push(document.getElementById(`subcrit_${idx}_${s}`).value);
+        }
+      });
+
+      // Genera matrices
+      generarMatrizComparacion();
+      generarMatricesSubcriterios();
+      generarMatricesAlternativasSub();
+      matrizContainer.classList.remove('d-none');
+      calcularAHP(); // Cálculo automático
+    };
+  };
 });
 
-// Función auxiliar para recalcular automáticamente al cambiar cualquier select
+// --- Función para recalcular automáticamente al cambiar cualquier select ---
 function addAutoCalcToAllSelects() {
   document.querySelectorAll('select.form-select').forEach(sel => {
     if (!sel.dataset.autocalc) {
       sel.addEventListener('change', () => {
-        calcularBtn.click();
+        calcularAHP();
       });
       sel.dataset.autocalc = "1";
     }
   });
 }
 
-// Función: Genera la tabla de comparación de criterios (recíproca y restringida)
+// --- MATRIZ DE CRITERIOS ---
 function generarMatrizComparacion() {
   matrizForm.innerHTML = '';
   const table = document.createElement('table');
@@ -149,14 +184,8 @@ function generarMatrizComparacion() {
     row.innerHTML = `<th>${criterios[i]}</th>`;
     for (let j = 0; j < criterios.length; j++) {
       const td = document.createElement('td');
-
       if (i === j) {
         td.innerHTML = '<input class="form-control" value="1" disabled />';
-        const hidden = document.createElement('input');
-        hidden.type = 'hidden';
-        hidden.name = `comp_${i}_${j}`;
-        hidden.value = '1';
-        matrizForm.appendChild(hidden);
       } else if (i < j) {
         const select = document.createElement('select');
         select.name = `comp_${i}_${j}`;
@@ -164,20 +193,18 @@ function generarMatrizComparacion() {
         allowedValues.forEach(val => {
           const option = document.createElement('option');
           option.value = val;
-          option.text = val === 1 ? '1 (Igual)' : val < 1 ? `1/${Math.round(1 / val)}` : val;
+          option.text = val === 1 ? '1 (Igual)' : val < 1 ? `1/${Math.round(1/val)}` : val;
           select.appendChild(option);
         });
         select.value = 1;
-
         select.addEventListener('change', function () {
           const recVal = 1 / parseFloat(this.value);
           const oppSelect = document.querySelector(`[name=comp_${j}_${i}]`);
           if (oppSelect) {
             oppSelect.value = recVal;
           }
-          calcularBtn.click();
+          calcularAHP();
         });
-
         td.appendChild(select);
       } else {
         const select = document.createElement('select');
@@ -186,239 +213,233 @@ function generarMatrizComparacion() {
         allowedValues.forEach(val => {
           const option = document.createElement('option');
           option.value = val;
-          option.text = val === 1 ? '1 (Igual)' : val < 1 ? `1/${Math.round(1 / val)}` : val;
+          option.text = val === 1 ? '1 (Igual)' : val < 1 ? `1/${Math.round(1/val)}` : val;
           select.appendChild(option);
         });
-        select.value = "1";
+        select.value = 1;
         td.appendChild(select);
       }
       row.appendChild(td);
     }
     tbody.appendChild(row);
   }
-
   table.appendChild(tbody);
   matrizForm.appendChild(table);
   addAutoCalcToAllSelects();
 }
 
-
-
-// Función: Genera las matrices de comparación de alternativas (recíproca y restringida)
-function generarMatricesAlternativas() {
-  alternativasMatrices.innerHTML = '';
-  criterios.forEach((criterio, index) => {
-    const div = document.createElement('div');
-    div.className = 'mt-4';
-    div.innerHTML = `<h5>Comparación de alternativas para: ${criterio}</h5>`;
-    const table = document.createElement('table');
-    table.className = 'table table-bordered';
-
-    const thead = document.createElement('thead');
-    const headRow = document.createElement('tr');
-    headRow.innerHTML = '<th></th>' + alternativas.map(a => `<th>${a}</th>`).join('');
-    thead.appendChild(headRow);
-    table.appendChild(thead);
-
-    const tbody = document.createElement('tbody');
-    for (let i = 0; i < alternativas.length; i++) {
-      const row = document.createElement('tr');
-      row.innerHTML = `<th>${alternativas[i]}</th>`;
-      for (let j = 0; j < alternativas.length; j++) {
-        const td = document.createElement('td');
+// --- MATRICES DE SUBCRITERIOS ---
+function generarMatricesSubcriterios() {
+  matricesSubcriterios.innerHTML = '';
+  criterios.forEach((crit, idx) => {
+    const subs = subcriteriosPorCriterio[crit];
+    let html = `<div class="mt-4"><h5>Matriz de comparación de subcriterios para: ${crit}</h5>`;
+    html += `<table class="table table-bordered"><thead><tr><th></th>${subs.map(s => `<th>${s}</th>`).join('')}</tr></thead><tbody>`;
+    for (let i = 0; i < subs.length; i++) {
+      html += `<tr><th>${subs[i]}</th>`;
+      for (let j = 0; j < subs.length; j++) {
         if (i === j) {
-          td.innerHTML = '<input class="form-control" value="1" disabled />';
-          const hidden = document.createElement('input');
-          hidden.type = 'hidden';
-          hidden.name = `alt_${index}_${i}_${j}`;
-          hidden.value = '1';
-          div.appendChild(hidden);
+          html += `<td><input class="form-control" value="1" disabled /></td>`;
         } else if (i < j) {
-          const select = document.createElement('select');
-          select.name = `alt_${index}_${i}_${j}`;
-          select.className = 'form-select';
-          allowedValues.forEach(val => {
-            const option = document.createElement('option');
-            option.value = val;
-            option.text = val === 1 ? '1 (Igual)' : val < 1 ? `1/${Math.round(1 / val)}` : val;
-            select.appendChild(option);
-          });
-          select.value = 1;
-
-          select.addEventListener('change', function () {
-            const recVal = 1 / parseFloat(this.value);
-            const oppSelect = document.querySelector(`[name=alt_${index}_${j}_${i}]`);
-            if (oppSelect) {
-              oppSelect.value = recVal;
-            }
-            calcularBtn.click();
-          });
-
-          td.appendChild(select);
+          html += `<td><select class="form-select" name="subcomp_${idx}_${i}_${j}">${allowedValues.map(val =>
+            `<option value="${val}">${val === 1 ? '1 (Igual)' : val < 1 ? `1/${Math.round(1/val)}` : val}</option>`
+          ).join('')}</select></td>`;
         } else {
-          const select = document.createElement('select');
-          select.name = `alt_${index}_${i}_${j}`;
-          select.className = 'form-select';
-          allowedValues.forEach(val => {
-            const option = document.createElement('option');
-            option.value = val;
-            option.text = val === 1 ? '1 (Igual)' : val < 1 ? `1/${Math.round(1 / val)}` : val;
-            select.appendChild(option);
-          });
-          select.value = 1;
-          td.appendChild(select);
+          html += `<td><select class="form-select" name="subcomp_${idx}_${i}_${j}">${allowedValues.map(val =>
+            `<option value="${val}">${val === 1 ? '1 (Igual)' : val < 1 ? `1/${Math.round(1/val)}` : val}</option>`
+          ).join('')}</select></td>`;
         }
-        row.appendChild(td);
       }
-      tbody.appendChild(row);
+      html += `</tr>`;
     }
-
-    table.appendChild(tbody);
-    div.appendChild(table);
-    div.innerHTML += `<div class='ahp-step' id='explicacion_alt_${index}'></div>`;
-    alternativasMatrices.appendChild(div);
+    html += `</tbody></table><div class='ahp-step' id='explicacion_sub_${idx}'></div></div>`;
+    matricesSubcriterios.innerHTML += html;
   });
   addAutoCalcToAllSelects();
 }
 
+// --- MATRICES DE ALTERNATIVAS POR SUBCRITERIO ---
+function generarMatricesAlternativasSub() {
+  matricesAlternativas.innerHTML = '';
+  criterios.forEach((crit, cidx) => {
+    const subs = subcriteriosPorCriterio[crit];
+    subs.forEach((sub, sidx) => {
+      const div = document.createElement('div');
+      div.className = 'mt-4';
+      div.innerHTML = `<h5>Comparación de alternativas para: <b>${sub}</b> (${crit})</h5>`;
+      const table = document.createElement('table');
+      table.className = 'table table-bordered';
 
+      const thead = document.createElement('thead');
+      const headRow = document.createElement('tr');
+      headRow.innerHTML = '<th></th>' + alternativas.map(a => `<th>${a}</th>`).join('');
+      thead.appendChild(headRow);
+      table.appendChild(thead);
 
-// Evento: Al hacer clic en "Calcular Pesos"
-calcularBtn.addEventListener('click', async function () {
-  // Obtiene la matriz de comparación de criterios desde los selects
-  const formData = new FormData(matrizForm);
+      const tbody = document.createElement('tbody');
+      for (let i = 0; i < alternativas.length; i++) {
+        const row = document.createElement('tr');
+        row.innerHTML = `<th>${alternativas[i]}</th>`;
+        for (let j = 0; j < alternativas.length; j++) {
+          const td = document.createElement('td');
+          if (i === j) {
+            td.innerHTML = '<input class="form-control" value="1" disabled />';
+          } else if (i < j) {
+            const select = document.createElement('select');
+            select.name = `altsub_${cidx}_${sidx}_${i}_${j}`;
+            select.className = 'form-select';
+            allowedValues.forEach(val => {
+              const option = document.createElement('option');
+              option.value = val;
+              option.text = val === 1 ? '1 (Igual)' : val < 1 ? `1/${Math.round(1/val)}` : val;
+              select.appendChild(option);
+            });
+            select.value = 1;
+            select.addEventListener('change', function () {
+              const recVal = 1 / parseFloat(this.value);
+              const oppSelect = document.querySelector(`[name=altsub_${cidx}_${sidx}_${j}_${i}]`);
+              if (oppSelect) {
+                oppSelect.value = recVal;
+              }
+              calcularAHP();
+            });
+            td.appendChild(select);
+          } else {
+            const select = document.createElement('select');
+            select.name = `altsub_${cidx}_${sidx}_${i}_${j}`;
+            select.className = 'form-select';
+            allowedValues.forEach(val => {
+              const option = document.createElement('option');
+              option.value = val;
+              option.text = val === 1 ? '1 (Igual)' : val < 1 ? `1/${Math.round(1/val)}` : val;
+              select.appendChild(option);
+            });
+            select.value = 1;
+            td.appendChild(select);
+          }
+          row.appendChild(td);
+        }
+        tbody.appendChild(row);
+      }
+      table.appendChild(tbody);
+      div.appendChild(table);
+      div.innerHTML += `<div class='ahp-step' id='explicacion_altsub_${cidx}_${sidx}'></div>`;
+      matricesAlternativas.appendChild(div);
+    });
+  });
+  addAutoCalcToAllSelects();
+}
+
+// --- CÁLCULO PRINCIPAL ---
+function calcularAHP() {
+  // --- Criterios ---
   const matrix = [];
   for (let i = 0; i < criterios.length; i++) {
     matrix[i] = [];
     for (let j = 0; j < criterios.length; j++) {
-      matrix[i][j] = Number(formData.get(`comp_${i}_${j}`)) || 1;
+      const sel = document.querySelector(`[name=comp_${i}_${j}]`);
+      matrix[i][j] = sel ? Number(sel.value) : 1;
     }
   }
-
-  // Calcula la suma de cada columna
+  // Suma columnas
   const colSums = Array(criterios.length).fill(0);
   for (let j = 0; j < criterios.length; j++)
     for (let i = 0; i < criterios.length; i++) colSums[j] += Number(matrix[i][j]);
-
-  // Normaliza la matriz dividiendo cada elemento por la suma de su columna
+  // Normaliza
   const normMatrix = matrix.map(row => row.map((val, j) => Number(val) / colSums[j]));
-  // Calcula los pesos de los criterios (promedio de cada fila de la matriz normalizada)
+  // Pesos criterios
   const pesosCriterios = normMatrix.map(row => row.reduce((a, b) => a + b, 0) / criterios.length);
 
-  // --- Cálculo del vector de autoridad y RC (Razón de Consistencia) ---
-  // 1. Multiplica la matriz original por el vector de pesos
-  const Aw = matrix.map(row =>
-    row.reduce((sum, val, j) => sum + Number(val) * pesosCriterios[j], 0)
-  );
-  // 2. Divide cada elemento de Aw por el peso correspondiente
-  const Aw_div_w = Aw.map((val, i) => val / pesosCriterios[i]);
-  // 3. Calcula lambda_max como el promedio de Aw_div_w
-  const lambdaMax = Aw_div_w.reduce((a, b) => a + b, 0) / criterios.length;
-  // 4. Calcula el Índice de Consistencia (IC)
-  const IC = (lambdaMax - criterios.length) / (criterios.length - 1);
-  // 5. Índice Aleatorio (RI) según el tamaño de la matriz
-  const RI_VALUES = {
-    1: 0.00, 2: 0.00, 3: 0.58, 4: 0.90, 5: 1.12, 6: 1.24, 7: 1.32, 8: 1.41, 9: 1.45, 10: 1.49
-  };
-  const RI = RI_VALUES[criterios.length] || 1.49;
-  // 6. Calcula el RC
-  const RC = RI === 0 ? 0 : IC / RI;
-
-  // Muestra explicación del cálculo de pesos de criterios y todos los procesos matemáticos
-  let texto = `<strong>Suma columnas:</strong> [${colSums.map(x => x.toFixed(3)).join(', ')}]<br>`;
-  texto += `<strong>Matriz normalizada:</strong><br>`;
-  texto += normMatrix.map(row => row.map(val => val.toFixed(3)).join(' | ')).join('<br>') + '<br>';
-  texto += `<strong>Pesos (vector de autoridad):</strong> [${pesosCriterios.map(p => p.toFixed(4)).join(', ')}]<br>`;
-  texto += `<strong>Vector A·w:</strong> [${Aw.map(x => x.toFixed(4)).join(', ')}]<br>`;
-  texto += `<strong>Vector A·w / w:</strong> [${Aw_div_w.map(x => x.toFixed(4)).join(', ')}]<br>`;
-  texto += `<strong>λ<sub>max</sub>:</strong> ${lambdaMax.toFixed(4)}<br>`;
-  texto += `<strong>Índice de Consistencia (IC):</strong> ${IC.toFixed(4)}<br>`;
-  texto += `<strong>Índice Aleatorio (RI):</strong> ${RI.toFixed(2)}<br>`;
-  texto += `<strong>Razón de Consistencia (RC):</strong> ${RC.toFixed(4)}<br>`;
-  texto += RC < 0.1
-    ? `<span class="text-success"><strong>La matriz es consistente (RC &lt; 0.1)</strong></span>`
-    : `<span class="text-danger"><strong>La matriz NO es consistente (RC &ge; 0.1)</strong></span>`;
-  explicacionCriterios.innerHTML = texto;
-
-  // Para cada criterio, calcula los pesos de las alternativas
-  const pesosAlternativasPorCriterio = criterios.map((_, cIndex) => {
-    // Obtiene la matriz de comparación de alternativas para este criterio
-    const altMatrix = [];
-    for (let i = 0; i < alternativas.length; i++) {
-      altMatrix[i] = [];
-      for (let j = 0; j < alternativas.length; j++) {
-        altMatrix[i][j] = Number(document.querySelector(`[name=alt_${cIndex}_${i}_${j}]`).value) || 1;
+  // --- Subcriterios ---
+  let pesosSubcriteriosPorCriterio = {}; // {criterio: [pesos subcriterios]}
+  criterios.forEach((crit, cidx) => {
+    const subs = subcriteriosPorCriterio[crit];
+    const n = subs.length;
+    const subMatrix = [];
+    for (let i = 0; i < n; i++) {
+      subMatrix[i] = [];
+      for (let j = 0; j < n; j++) {
+        const sel = document.querySelector(`[name=subcomp_${cidx}_${i}_${j}]`);
+        subMatrix[i][j] = sel ? Number(sel.value) : 1;
       }
     }
-
-    // Calcula la suma de cada columna
-    const colSum = Array(alternativas.length).fill(0);
-    for (let j = 0; j < alternativas.length; j++)
-      for (let i = 0; i < alternativas.length; i++) colSum[j] += Number(altMatrix[i][j]);
-
-    // Normaliza la matriz de alternativas
-    const norm = altMatrix.map(row => row.map((val, j) => Number(val) / colSum[j]));
-    // Calcula los pesos de alternativas (promedio de cada fila)
-    const pesos = norm.map(row => row.reduce((a, b) => a + b, 0) / alternativas.length);
-
-    // Muestra explicación del cálculo de pesos de alternativas para este criterio
+    // Suma columnas
+    const colSum = Array(n).fill(0);
+    for (let j = 0; j < n; j++)
+      for (let i = 0; i < n; i++) colSum[j] += subMatrix[i][j];
+    // Normaliza
+    const norm = subMatrix.map(row => row.map((val, j) => val / colSum[j]));
+    // Pesos
+    const pesos = norm.map(row => row.reduce((a, b) => a + b, 0) / n);
+    pesosSubcriteriosPorCriterio[crit] = pesos;
+    // Explicación
     const paso = `<strong>Suma columnas:</strong> [${colSum.map(x => x.toFixed(3)).join(', ')}]<br>` +
       `<strong>Matriz normalizada:</strong><br>` +
       norm.map(row => row.map(v => v.toFixed(3)).join(' | ')).join('<br>') + '<br>' +
       `<strong>Pesos:</strong> [${pesos.map(p => p.toFixed(4)).join(', ')}]`;
-    document.getElementById(`explicacion_alt_${cIndex}`).innerHTML = paso;
-
-    return pesos;
+    const expl = document.getElementById(`explicacion_sub_${cidx}`);
+    if (expl) expl.innerHTML = paso;
   });
 
-  // Calcula el puntaje final de cada alternativa (suma ponderada)
-  const puntajesFinales = alternativas.map((_, i) => {
-    return criterios.reduce((total, _, j) => {
-      return total + pesosCriterios[j] * pesosAlternativasPorCriterio[j][i];
-    }, 0);
+  // --- Alternativas respecto a cada subcriterio ---
+  let pesosAlternativasPorSubcriterio = {}; // {cidx_sidx: [pesos alternativas]}
+  criterios.forEach((crit, cidx) => {
+    const subs = subcriteriosPorCriterio[crit];
+    subs.forEach((sub, sidx) => {
+      const n = alternativas.length;
+      const altMatrix = [];
+      for (let i = 0; i < n; i++) {
+        altMatrix[i] = [];
+        for (let j = 0; j < n; j++) {
+          const sel = document.querySelector(`[name=altsub_${cidx}_${sidx}_${i}_${j}]`);
+          altMatrix[i][j] = sel ? Number(sel.value) : 1;
+        }
+      }
+      // Suma columnas
+      const colSum = Array(n).fill(0);
+      for (let j = 0; j < n; j++)
+        for (let i = 0; i < n; i++) colSum[j] += altMatrix[i][j];
+      // Normaliza
+      const norm = altMatrix.map(row => row.map((val, j) => val / colSum[j]));
+      // Pesos
+      const pesos = norm.map(row => row.reduce((a, b) => a + b, 0) / n);
+      pesosAlternativasPorSubcriterio[`${cidx}_${sidx}`] = pesos;
+      // Explicación
+      const paso = `<strong>Suma columnas:</strong> [${colSum.map(x => x.toFixed(3)).join(', ')}]<br>` +
+        `<strong>Matriz normalizada:</strong><br>` +
+        norm.map(row => row.map(v => v.toFixed(3)).join(' | ')).join('<br>') + '<br>' +
+        `<strong>Pesos:</strong> [${pesos.map(p => p.toFixed(4)).join(', ')}]`;
+      const expl = document.getElementById(`explicacion_altsub_${cidx}_${sidx}`);
+      if (expl) expl.innerHTML = paso;
+    });
   });
 
-  // Muestra el resultado final detallado
+  // --- Puntaje global de cada alternativa ---
+  // Puntaje = suma sobre criterios [peso criterio × suma sobre subcriterios (peso subcriterio × peso alternativa respecto a subcriterio)]
+  const puntajesFinales = alternativas.map((_, aidx) => {
+    let total = 0;
+    criterios.forEach((crit, cidx) => {
+      const pesoCrit = pesosCriterios[cidx];
+      const subs = subcriteriosPorCriterio[crit];
+      let subtotal = 0;
+      subs.forEach((sub, sidx) => {
+        const pesoSub = pesosSubcriteriosPorCriterio[crit][sidx];
+        const pesoAlt = pesosAlternativasPorSubcriterio[`${cidx}_${sidx}`][aidx];
+        subtotal += pesoSub * pesoAlt;
+      });
+      total += pesoCrit * subtotal;
+    });
+    return total;
+  });
+
+  // --- Mostrar resultados finales ---
   let finalTexto = `<h5>Resultado Final:</h5><ul>`;
   alternativas.forEach((alt, i) => {
-    let detalle = criterios.map((_, j) => `(${pesosCriterios[j].toFixed(4)}×${pesosAlternativasPorCriterio[j][i].toFixed(4)})`).join(' + ');
-    finalTexto += `<li><strong>${alt}</strong>: ${detalle} = <strong>${puntajesFinales[i].toFixed(4)}</strong></li>`;
+    finalTexto += `<li><strong>${alt}</strong>: <strong>${puntajesFinales[i].toFixed(4)}</strong></li>`;
   });
   finalTexto += '</ul>';
   resultadosDiv.innerHTML = finalTexto;
-
-  // Prepara los datos para enviar al backend y generar el Excel
-  const payload = {
-    criterios,
-    alternativas,
-    matrizCriterios: matrix,
-    matrizAlternativas: pesosAlternativasPorCriterio,
-    pesosCriterios,
-    resultadoFinal: puntajesFinales
-  };
-
-  // Llama al backend para generar y descargar el archivo Excel
-  const response = await fetch('/exportarAHP', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
-  });
-
-  // Si la respuesta es exitosa, muestra el botón de descarga
-  if (response.ok) {
-    const blob = await response.blob();
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'AHP_Resultados.xlsx';
-    link.className = 'btn btn-success mt-3';
-    link.innerText = 'Descargar Resultados en Excel';
-    excelDescarga.innerHTML = '';
-    excelDescarga.appendChild(link);
-  } else {
-    excelDescarga.innerHTML = '<div class="text-danger">Error al generar el archivo Excel.</div>';
-  }
-});
+}
 
 // Botón para limpiar todo y reiniciar el análisis
 limpiarBtn.addEventListener('click', function () {
