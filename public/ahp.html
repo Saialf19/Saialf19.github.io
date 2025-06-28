@@ -217,37 +217,40 @@ function generarMatricesAlternativas() {
       row.innerHTML = `<th>${alternativas[i]}</th>`;
       for (let j = 0; j < alternativas.length; j++) {
         const td = document.createElement('td');
+        const select = document.createElement('select');
+        select.name = `alt_${index}_${i}_${j}`;
+        select.className = 'form-select';
+
+        allowedValues.forEach(val => {
+          const option = document.createElement('option');
+          option.value = val;
+          option.text = val === 1 ? '1 (Igual)' : val < 1 ? `1/${Math.round(1/val)}` : val;
+          select.appendChild(option);
+        });
+        select.value = 1;
+
         if (i === j) {
-          td.innerHTML = '<input class="form-control" value="1" disabled />';
-        } else {
-          const select = document.createElement('select');
-          select.name = `alt_${index}_${i}_${j}`;
-          select.className = 'form-select';
-          allowedValues.forEach(val => {
-            const option = document.createElement('option');
-            option.value = val;
-            option.text = val === 1 ? '1 (Igual)' : val < 1 ? `1/${Math.round(1/val)}` : val;
-            select.appendChild(option);
+          select.disabled = true;
+        } else if (i < j) {
+          select.addEventListener('change', function () {
+            const recVal = 1 / parseFloat(this.value);
+            const oppSelect = document.querySelector(`[name=alt_${index}_${j}_${i}]`);
+            if (oppSelect) {
+              oppSelect.value = recVal;
+              oppSelect.dispatchEvent(new Event('change'));
+            }
+            calcularBtn.click();
           });
-          select.value = 1;
-          if (i < j) {
-            select.addEventListener('change', function () {
-              const recVal = 1 / parseFloat(this.value);
-              const oppSelect = document.querySelector(`[name=alt_${index}_${j}_${i}]`);
-              if (oppSelect) {
-                oppSelect.value = recVal;
-              }
-              calcularBtn.click();
-            });
-          } else {
-            select.readOnly = true; // No editable pero visible
-          }
-          td.appendChild(select);
+        } else {
+          select.disabled = true; // este valor se llenará automáticamente desde su simétrico
         }
+
+        td.appendChild(select);
         row.appendChild(td);
       }
       tbody.appendChild(row);
     }
+
     table.appendChild(tbody);
     div.appendChild(table);
     div.innerHTML += `<div class='ahp-step' id='explicacion_alt_${index}'></div>`;
@@ -255,6 +258,7 @@ function generarMatricesAlternativas() {
   });
   addAutoCalcToAllSelects();
 }
+
 
 // Evento: Al hacer clic en "Calcular Pesos"
 calcularBtn.addEventListener('click', async function () {
