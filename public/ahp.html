@@ -117,6 +117,7 @@ datosForm.addEventListener('submit', function (e) {
   generarMatricesAlternativas();
   // Muestra el contenedor de matrices
   matrizContainer.classList.remove('d-none');
+  calcularBtn.click(); // Calcula automáticamente al mostrar matrices
 });
 
 // Función: Genera la tabla de comparación de criterios (recíproca y restringida)
@@ -149,11 +150,16 @@ function generarMatrizComparacion() {
           option.text = val === 1 ? '1 (Igual)' : val < 1 ? `1/${Math.round(1/val)}` : val;
           select.appendChild(option);
         });
-        select.value = '';
+        select.value = 1; // Valor inicial
         select.addEventListener('change', function () {
           const recVal = 1 / parseFloat(this.value);
           const oppSelect = document.querySelector(`[name=comp_${j}_${i}]`);
-          if (oppSelect) oppSelect.value = recVal;
+          if (oppSelect) {
+            oppSelect.value = recVal;
+            // Dispara el evento change en la inversa para mantener sincronía
+            oppSelect.dispatchEvent(new Event('change'));
+          }
+          calcularBtn.click(); // Calcula automáticamente
         });
         td.appendChild(select);
       } else {
@@ -166,6 +172,7 @@ function generarMatrizComparacion() {
           option.text = val === 1 ? '1 (Igual)' : val < 1 ? `1/${Math.round(1/val)}` : val;
           select.appendChild(option);
         });
+        select.value = 1;
         select.disabled = true;
         td.appendChild(select);
       }
@@ -211,11 +218,15 @@ function generarMatricesAlternativas() {
             option.text = val === 1 ? '1 (Igual)' : val < 1 ? `1/${Math.round(1/val)}` : val;
             select.appendChild(option);
           });
-          select.value = '';
+          select.value = 1;
           select.addEventListener('change', function () {
             const recVal = 1 / parseFloat(this.value);
             const oppSelect = document.querySelector(`[name=alt_${index}_${j}_${i}]`);
-            if (oppSelect) oppSelect.value = recVal;
+            if (oppSelect) {
+              oppSelect.value = recVal;
+              oppSelect.dispatchEvent(new Event('change'));
+            }
+            calcularBtn.click();
           });
           td.appendChild(select);
         } else {
@@ -228,6 +239,7 @@ function generarMatricesAlternativas() {
             option.text = val === 1 ? '1 (Igual)' : val < 1 ? `1/${Math.round(1/val)}` : val;
             select.appendChild(option);
           });
+          select.value = 1;
           select.disabled = true;
           td.appendChild(select);
         }
