@@ -41,7 +41,7 @@
     <div id="explicacion-criterios" class="ahp-step"></div>
     <div id="alternativas-matrices"></div>
     <div id="explicacion-alternativas"></div>
-    <button id="calcular-btn" class="btn btn-info mt-3">Calcular Pesos</button>
+    <!--<button id="calcular-btn" class="btn btn-info mt-3">Calcular Pesos</button>-->
     <button id="limpiar-btn" class="btn btn-secondary mt-3 ms-2">Limpiar Todo</button>
     <div id="resultados" class="mt-4"></div>
     <div id="excel-descarga" class="mt-3"></div>
@@ -175,7 +175,7 @@ function generarMatrizComparacion() {
           if (oppSelect) {
             oppSelect.value = recVal;
           }
-          //calcularBtn.click();//
+          calcularBtn.click();
         });
 
         td.appendChild(select);
@@ -251,7 +251,7 @@ function generarMatricesAlternativas() {
             if (oppSelect) {
               oppSelect.value = recVal;
             }
-            //calcularBtn.click();//
+            calcularBtn.click();
           });
 
           td.appendChild(select);
