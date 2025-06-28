@@ -60,10 +60,41 @@ app.post('/exportarAHP', async (req, res) => {
       resultadoFinal
     } = req.body;
 
+    // --- Cálculos adicionales para mostrar todo el proceso ---
+    // Suma columnas
+    const colSums = Array(criterios.length).fill(0);
+    for (let j = 0; j < criterios.length; j++)
+      for (let i = 0; i < criterios.length; i++)
+        colSums[j] += matrizCriterios[i][j];
+
+    // Matriz normalizada
+    const normMatrix = matrizCriterios.map(row =>
+      row.map((val, j) => val / colSums[j])
+    );
+
+    // Vector Aw
+    const Aw = matrizCriterios.map(row =>
+      row.reduce((sum, val, j) => sum + val * pesosCriterios[j], 0)
+    );
+    // Vector Aw/w
+    const Aw_div_w = Aw.map((val, i) => val / pesosCriterios[i]);
+    // Lambda max
+    const lambdaMax = Aw_div_w.reduce((a, b) => a + b, 0) / criterios.length;
+    // Índice de Consistencia (IC)
+    const IC = (lambdaMax - criterios.length) / (criterios.length - 1);
+    // Índice Aleatorio (RI)
+    const RI_VALUES = {
+      1: 0.00, 2: 0.00, 3: 0.58, 4: 0.90, 5: 1.12, 6: 1.24, 7: 1.32, 8: 1.41, 9: 1.45, 10: 1.49
+    };
+    const RI = RI_VALUES[criterios.length] || 1.49;
+    // Razón de Consistencia (RC)
+    const RC = RI === 0 ? 0 : IC / RI;
+
+    // --- Generación del Excel ---
     const workbook = new ExcelJS.Workbook();
     const hoja = workbook.addWorksheet('AHP Completo');
 
-    // Título matriz de criterios
+    // Matriz de comparación de criterios
     hoja.addRow(['Matriz de comparación de criterios']);
     hoja.addRow(['', ...criterios]);
     matrizCriterios.forEach((row, i) => {
@@ -71,20 +102,42 @@ app.post('/exportarAHP', async (req, res) => {
     });
     hoja.addRow([]);
 
-    // Título pesos criterios
-    hoja.addRow(['Pesos de Criterios']);
-    hoja.addRow(['Criterio', 'Peso']);
-    criterios.forEach((c, i) => {
-      hoja.addRow([c, pesosCriterios[i]]);
+    // Suma columnas
+    hoja.addRow(['Suma columnas', ...colSums.map(x => Number(x.toFixed(4)))]);
+    hoja.addRow([]);
+
+    // Matriz normalizada
+    hoja.addRow(['Matriz normalizada']);
+    hoja.addRow(['', ...criterios]);
+    normMatrix.forEach((row, i) => {
+      hoja.addRow([criterios[i], ...row.map(x => Number(x.toFixed(4)))]);
     });
     hoja.addRow([]);
 
-    // Título matrices alternativas
+    // Pesos (vector de autoridad)
+    hoja.addRow(['Pesos (vector de autoridad)', ...pesosCriterios.map(x => Number(x.toFixed(4)))]);
+    hoja.addRow([]);
+
+    // Vector Aw
+    hoja.addRow(['Vector A·w', ...Aw.map(x => Number(x.toFixed(4)))]);
+    // Vector Aw/w
+    hoja.addRow(['Vector A·w / w', ...Aw_div_w.map(x => Number(x.toFixed(4)))]);
+    hoja.addRow([]);
+
+    // Consistencia
+    hoja.addRow([`λ_max`, lambdaMax.toFixed(4)]);
+    hoja.addRow([`Índice de Consistencia (IC)`, IC.toFixed(4)]);
+    hoja.addRow([`Índice Aleatorio (RI)`, RI.toFixed(2)]);
+    hoja.addRow([`Razón de Consistencia (RC)`, RC.toFixed(4)]);
+    hoja.addRow([RC < 0.1 ? 'La matriz es consistente (RC < 0.1)' : 'La matriz NO es consistente (RC >= 0.1)']);
+    hoja.addRow([]);
+
+    // Matrices de alternativas por criterio (incluye matriz completa y pesos)
     matrizAlternativas.forEach((pesos, cIndex) => {
       hoja.addRow([`Pesos de alternativas para el criterio: ${criterios[cIndex]}`]);
       hoja.addRow(['Alternativa', 'Peso']);
       alternativas.forEach((alt, i) => {
-        hoja.addRow([alt, pesos[i]]);
+        hoja.addRow([alt, Number(pesos[i].toFixed(4))]);
       });
       hoja.addRow([]);
     });
@@ -93,7 +146,7 @@ app.post('/exportarAHP', async (req, res) => {
     hoja.addRow(['Resultado Final']);
     hoja.addRow(['Alternativa', 'Puntaje']);
     alternativas.forEach((alt, i) => {
-      hoja.addRow([alt, resultadoFinal[i]]);
+      hoja.addRow([alt, Number(resultadoFinal[i].toFixed(4))]);
     });
 
     const buffer = await workbook.xlsx.writeBuffer();
