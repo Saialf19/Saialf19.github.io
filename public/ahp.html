@@ -219,27 +219,6 @@ function generarMatricesAlternativas() {
         const td = document.createElement('td');
         if (i === j) {
           td.innerHTML = '<input class="form-control" value="1" disabled />';
-        } else if (i < j) {
-          const select = document.createElement('select');
-          select.name = `alt_${index}_${i}_${j}`;
-          select.className = 'form-select';
-          allowedValues.forEach(val => {
-            const option = document.createElement('option');
-            option.value = val;
-            option.text = val === 1 ? '1 (Igual)' : val < 1 ? `1/${Math.round(1/val)}` : val;
-            select.appendChild(option);
-          });
-          select.value = 1;
-          select.addEventListener('change', function () {
-            const recVal = 1 / parseFloat(this.value);
-            const oppSelect = document.querySelector(`[name=alt_${index}_${j}_${i}]`);
-            if (oppSelect) {
-              oppSelect.value = recVal;
-              oppSelect.dispatchEvent(new Event('change'));
-            }
-            calcularBtn.click();
-          });
-          td.appendChild(select);
         } else {
           const select = document.createElement('select');
           select.name = `alt_${index}_${i}_${j}`;
@@ -251,7 +230,18 @@ function generarMatricesAlternativas() {
             select.appendChild(option);
           });
           select.value = 1;
-          select.disabled = true;
+          if (i < j) {
+            select.addEventListener('change', function () {
+              const recVal = 1 / parseFloat(this.value);
+              const oppSelect = document.querySelector(`[name=alt_${index}_${j}_${i}]`);
+              if (oppSelect) {
+                oppSelect.value = recVal;
+              }
+              calcularBtn.click();
+            });
+          } else {
+            select.readOnly = true; // No editable pero visible
+          }
           td.appendChild(select);
         }
         row.appendChild(td);
