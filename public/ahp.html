@@ -203,6 +203,7 @@ function generarMatrizComparacion() {
 }
 
 
+
 // Función: Genera las matrices de comparación de alternativas (recíproca y restringida)
 function generarMatricesAlternativas() {
   alternativasMatrices.innerHTML = '';
@@ -233,35 +234,39 @@ function generarMatricesAlternativas() {
           hidden.value = '1';
           div.appendChild(hidden);
         } else if (i < j) {
-          const input = document.createElement('input');
-          input.type = 'number';
-          input.step = 'any';
-          input.min = '0.111';
-          input.max = '9';
-          input.className = 'form-control';
-          input.name = `alt_${index}_${i}_${j}`;
-          input.value = '1';
+          const select = document.createElement('select');
+          select.name = `alt_${index}_${i}_${j}`;
+          select.className = 'form-select';
+          allowedValues.forEach(val => {
+            const option = document.createElement('option');
+            option.value = val;
+            option.text = val === 1 ? '1 (Igual)' : val < 1 ? `1/${Math.round(1 / val)}` : val;
+            select.appendChild(option);
+          });
+          select.value = 1;
 
-          input.addEventListener('input', function () {
-            const val = parseFloat(this.value);
-            const inverso = (1 / val).toFixed(4);
-            const oppInput = document.querySelector(`[name=alt_${index}_${j}_${i}]`);
-            if (oppInput) {
-              oppInput.value = inverso;
+          select.addEventListener('change', function () {
+            const recVal = 1 / parseFloat(this.value);
+            const oppSelect = document.querySelector(`[name=alt_${index}_${j}_${i}]`);
+            if (oppSelect) {
+              oppSelect.value = recVal;
             }
+            calcularBtn.click();
           });
 
-          td.appendChild(input);
+          td.appendChild(select);
         } else {
-          const input = document.createElement('input');
-          input.type = 'number';
-          input.step = 'any';
-          input.className = 'form-control';
-          input.name = `alt_${index}_${i}_${j}`;
-          input.value = '1';
-          input.readOnly = true;
-          input.style.backgroundColor = '#e9ecef';
-          td.appendChild(input);
+          const select = document.createElement('select');
+          select.name = `alt_${index}_${i}_${j}`;
+          select.className = 'form-select';
+          allowedValues.forEach(val => {
+            const option = document.createElement('option');
+            option.value = val;
+            option.text = val === 1 ? '1 (Igual)' : val < 1 ? `1/${Math.round(1 / val)}` : val;
+            select.appendChild(option);
+          });
+          select.value = 1;
+          td.appendChild(select);
         }
         row.appendChild(td);
       }
@@ -273,6 +278,7 @@ function generarMatricesAlternativas() {
     div.innerHTML += `<div class='ahp-step' id='explicacion_alt_${index}'></div>`;
     alternativasMatrices.appendChild(div);
   });
+  addAutoCalcToAllSelects();
 }
 
 
