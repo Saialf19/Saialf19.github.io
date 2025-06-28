@@ -42,6 +42,7 @@
     <div id="alternativas-matrices"></div>
     <div id="explicacion-alternativas"></div>
     <button id="calcular-btn" class="btn btn-info mt-3">Calcular Pesos</button>
+    <button id="limpiar-btn" class="btn btn-secondary mt-3 ms-2">Limpiar Todo</button>
     <div id="resultados" class="mt-4"></div>
     <div id="excel-descarga" class="mt-3"></div>
   </div>
@@ -56,6 +57,7 @@
     const matrizForm = document.getElementById('matriz-form');
     const alternativasMatrices = document.getElementById('alternativas-matrices');
     const calcularBtn = document.getElementById('calcular-btn');
+    const limpiarBtn = document.getElementById('limpiar-btn');
     const resultadosDiv = document.getElementById('resultados');
     const explicacionCriterios = document.getElementById('explicacion-criterios');
     const explicacionAlternativas = document.getElementById('explicacion-alternativas');
@@ -211,11 +213,39 @@
       // Calcula los pesos de los criterios (promedio de cada fila de la matriz normalizada)
       const pesosCriterios = normMatrix.map(row => row.reduce((a, b) => a + b, 0) / criterios.length);
 
-      // Muestra explicación del cálculo de pesos de criterios
+      // --- Cálculo del vector de autoridad y RC (Razón de Consistencia) ---
+      // 1. Multiplica la matriz original por el vector de pesos
+      const Aw = matrix.map(row =>
+        row.reduce((sum, val, j) => sum + val * pesosCriterios[j], 0)
+      );
+      // 2. Divide cada elemento de Aw por el peso correspondiente
+      const Aw_div_w = Aw.map((val, i) => val / pesosCriterios[i]);
+      // 3. Calcula lambda_max como el promedio de Aw_div_w
+      const lambdaMax = Aw_div_w.reduce((a, b) => a + b, 0) / criterios.length;
+      // 4. Calcula el Índice de Consistencia (IC)
+      const IC = (lambdaMax - criterios.length) / (criterios.length - 1);
+      // 5. Índice Aleatorio (RI) según el tamaño de la matriz
+      const RI_VALUES = {
+        1: 0.00, 2: 0.00, 3: 0.58, 4: 0.90, 5: 1.12, 6: 1.24, 7: 1.32, 8: 1.41, 9: 1.45, 10: 1.49
+      };
+      const RI = RI_VALUES[criterios.length] || 1.49;
+      // 6. Calcula el RC
+      const RC = RI === 0 ? 0 : IC / RI;
+
+      // Muestra explicación del cálculo de pesos de criterios y todos los procesos matemáticos
       let texto = `<strong>Suma columnas:</strong> [${colSums.map(x => x.toFixed(3)).join(', ')}]<br>`;
       texto += `<strong>Matriz normalizada:</strong><br>`;
       texto += normMatrix.map(row => row.map(val => val.toFixed(3)).join(' | ')).join('<br>') + '<br>';
-      texto += `<strong>Pesos:</strong> [${pesosCriterios.map(p => p.toFixed(4)).join(', ')}]`;
+      texto += `<strong>Pesos (vector de autoridad):</strong> [${pesosCriterios.map(p => p.toFixed(4)).join(', ')}]<br>`;
+      texto += `<strong>Vector A·w:</strong> [${Aw.map(x => x.toFixed(4)).join(', ')}]<br>`;
+      texto += `<strong>Vector A·w / w:</strong> [${Aw_div_w.map(x => x.toFixed(4)).join(', ')}]<br>`;
+      texto += `<strong>λ<sub>max</sub>:</strong> ${lambdaMax.toFixed(4)}<br>`;
+      texto += `<strong>Índice de Consistencia (IC):</strong> ${IC.toFixed(4)}<br>`;
+      texto += `<strong>Índice Aleatorio (RI):</strong> ${RI.toFixed(2)}<br>`;
+      texto += `<strong>Razón de Consistencia (RC):</strong> ${RC.toFixed(4)}<br>`;
+      texto += RC < 0.1
+        ? `<span class="text-success"><strong>La matriz es consistente (RC &lt; 0.1)</strong></span>`
+        : `<span class="text-danger"><strong>La matriz NO es consistente (RC &ge; 0.1)</strong></span>`;
       explicacionCriterios.innerHTML = texto;
 
       // Para cada criterio, calcula los pesos de las alternativas
@@ -297,6 +327,11 @@
       } else {
         excelDescarga.innerHTML = '<div class="text-danger">Error al generar el archivo Excel.</div>';
       }
+    });
+
+    // Botón para limpiar todo y reiniciar el análisis
+    limpiarBtn.addEventListener('click', function () {
+      window.location.reload();
     });
   </script>
 </body>
