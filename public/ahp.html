@@ -8,6 +8,7 @@
     .ahp-step { font-size: 0.9rem; background: #f8f9fa; padding: 10px; border: 1px solid #ccc; margin-top: 10px; }
     table td input { min-width: 50px; text-align: center; }
   </style>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
 <body class="p-5">
   <h2 class="mb-4">Configura tu análisis AHP</h2>
@@ -25,6 +26,11 @@
     </div>
     <button type="submit" class="btn btn-primary">Generar formulario</button>
   </form>
+    <!-- Botón para importar Excel -->
+  <div class="mt-3 mb-3">
+   <label for="importarExcel" class="form-label"><strong>Importar datos desde Excel</strong></label>
+   <input type="file" id="importarExcel" class="form-control" accept=".xlsx,.xls" />
+  </div>
 
   <!-- Formulario para ingresar nombres de criterios y alternativas -->
   <form id="datos-form" class="mt-4 d-none"></form>
@@ -43,7 +49,6 @@
     <div id="excel-descarga" class="mt-3"></div>
   </div>
 
-<!-- Solo reemplaza el <script> de tu archivo actual por este -->
 <script>
 const allowedValues = [
   1/9, 1/8, 1/7, 1/6, 1/5, 1/4, 1/3, 1/2,
@@ -176,11 +181,94 @@ datosForm.addEventListener('submit', function (e) {
   };
 });
 
-// --- MATRIZ DE CRITERIOS --- (igual que antes)
-function generarMatrizComparacion() { /* ...igual que tu código actual... */ }
+// --- MATRIZ DE CRITERIOS ---
+function generarMatrizComparacion() {
+  matrizForm.innerHTML = '';
+  const table = document.createElement('table');
+  table.className = 'table table-bordered';
 
-// --- MATRICES DE SUBCRITERIOS --- (igual que antes)
-function generarMatricesSubcriterios() { /* ...igual que tu código actual... */ }
+  const thead = document.createElement('thead');
+  const headRow = document.createElement('tr');
+  headRow.innerHTML = '<th></th>' + criterios.map(c => `<th>${c}</th>`).join('');
+  thead.appendChild(headRow);
+  table.appendChild(thead);
+
+  const tbody = document.createElement('tbody');
+  for (let i = 0; i < criterios.length; i++) {
+    const row = document.createElement('tr');
+    row.innerHTML = `<th>${criterios[i]}</th>`;
+    for (let j = 0; j < criterios.length; j++) {
+      const td = document.createElement('td');
+      if (i === j) {
+        td.innerHTML = '<input class="form-control" value="1" disabled />';
+      } else if (i < j) {
+        const select = document.createElement('select');
+        select.name = `comp_${i}_${j}`;
+        select.className = 'form-select';
+        allowedValues.forEach(val => {
+          const option = document.createElement('option');
+          option.value = val;
+          option.text = val === 1 ? '1 (Igual)' : val < 1 ? `1/${Math.round(1/val)}` : val;
+          select.appendChild(option);
+        });
+        select.value = 1;
+        select.addEventListener('change', function () {
+          const recVal = 1 / parseFloat(this.value);
+          const oppSelect = document.querySelector(`[name=comp_${j}_${i}]`);
+          if (oppSelect) {
+            oppSelect.value = recVal;
+          }
+        });
+        td.appendChild(select);
+      } else {
+        const select = document.createElement('select');
+        select.name = `comp_${i}_${j}`;
+        select.className = 'form-select';
+        allowedValues.forEach(val => {
+          const option = document.createElement('option');
+          option.value = val;
+          option.text = val === 1 ? '1 (Igual)' : val < 1 ? `1/${Math.round(1/val)}` : val;
+          select.appendChild(option);
+        });
+        select.value = 1;
+        td.appendChild(select);
+      }
+      row.appendChild(td);
+    }
+    tbody.appendChild(row);
+  }
+  table.appendChild(tbody);
+  matrizForm.appendChild(table);
+}
+
+// --- MATRICES DE SUBCRITERIOS ---
+function generarMatricesSubcriterios() {
+  matricesSubcriterios.innerHTML = '';
+  criterios.forEach((crit, idx) => {
+    const subs = subcriteriosPorCriterio[crit];
+    let html = `<div class="mt-4"><h5>Matriz de comparación de subcriterios para: ${crit}</h5>`;
+    html += `<table class="table table-bordered"><thead><tr><th></th>${subs.map(s => `<th>${s}</th>`).join('')}</tr></thead><tbody>`;
+    for (let i = 0; i < subs.length; i++) {
+      html += `<tr><th>${subs[i]}</th>`;
+      for (let j = 0; j < subs.length; j++) {
+        if (i === j) {
+          html += `<td><input class="form-control" value="1" disabled /></td>`;
+        } else if (i < j) {
+          html += `<td><select class="form-select" name="subcomp_${idx}_${i}_${j}">${allowedValues.map(val =>
+            `<option value="${val}">${val === 1 ? '1 (Igual)' : val < 1 ? `1/${Math.round(1/val)}` : val}</option>`
+          ).join('')}</select></td>`;
+        } else {
+          html += `<td><select class="form-select" name="subcomp_${idx}_${i}_${j}">${allowedValues.map(val =>
+            `<option value="${val}">${val === 1 ? '1 (Igual)' : val < 1 ? `1/${Math.round(1/val)}` : val}</option>`
+          ).join('')}</select></td>`;
+        }
+      }
+      html += `</tr>`;
+    }
+    html += `</tbody></table><div class='ahp-step' id='explicacion_sub_${idx}'></div></div>`;
+    matricesSubcriterios.innerHTML += html;
+  });
+}
 
 // --- MATRICES DE ALTERNATIVAS POR SUBCRITERIO ---
 function generarMatricesAlternativasSub() {
@@ -246,8 +334,7 @@ function generarMatricesAlternativasSub() {
       }
       table.appendChild(tbody);
       div.appendChild(table);
-      div.innerHTML += `<div class='ahp-step' id='explicacion_altsub_${cidx}_${sidx}'></div>
-      <div class='ahp-step' id='detalle_altsub_${cidx}_${sidx}'></div>`;
+      div.innerHTML += `<div class='ahp-step' id='explicacion_altsub_${cidx}_${sidx}'></div>`;
       matricesAlternativas.appendChild(div);
     });
   });
@@ -316,14 +403,13 @@ function generarMatricesAlternativasClasico() {
     }
     table.appendChild(tbody);
     div.appendChild(table);
-    div.innerHTML += `<div class='ahp-step' id='explicacion_alt_${index}'></div>
-    <div class='ahp-step' id='detalle_alt_${index}'></div>`;
+    div.innerHTML += `<div class='ahp-step' id='explicacion_alt_${index}'></div>`;
     matricesAlternativas.appendChild(div);
   });
 }
 
 // --- CÁLCULO PRINCIPAL ---
-calcularBtn.addEventListener('click', async function () {
+calcularBtn.addEventListener('click', function () {
   // --- Criterios ---
   const matrix = [];
   for (let i = 0; i < criterios.length; i++) {
@@ -431,14 +517,6 @@ calcularBtn.addEventListener('click', async function () {
           `<strong>Pesos:</strong> [${pesos.map(p => p.toFixed(4)).join(', ')}]`;
         const expl = document.getElementById(`explicacion_altsub_${cidx}_${sidx}`);
         if (expl) expl.innerHTML = paso;
-
-        // Detalle de procedimiento para cada alternativa
-        let detalle = `<strong>Procedimiento:</strong><br>`;
-        alternativas.forEach((alt, aidx) => {
-          detalle += `<b>${alt}:</b> (${norm[aidx].map((v, j) => v.toFixed(3)).join(' + ')}) / ${n} = <b>${pesos[aidx].toFixed(4)}</b><br>`;
-        });
-        const detDiv = document.getElementById(`detalle_altsub_${cidx}_${sidx}`);
-        if (detDiv) detDiv.innerHTML = detalle;
       });
     });
 
@@ -462,47 +540,10 @@ calcularBtn.addEventListener('click', async function () {
     // Mostrar resultados finales
     let finalTexto = `<h5>Resultado Final:</h5><ul>`;
     alternativas.forEach((alt, i) => {
-      let detalle = '';
-      criterios.forEach((crit, cidx) => {
-        const pesoCrit = pesosCriterios[cidx];
-        const subs = subcriteriosPorCriterio[crit];
-        let subDetalle = subs.map((sub, sidx) => {
-          const pesoSub = pesosSubcriteriosPorCriterio[crit][sidx];
-          const pesoAlt = pesosAlternativasPorSubcriterio[`${cidx}_${sidx}`][i];
-          return `(${pesoSub.toFixed(4)}×${pesoAlt.toFixed(4)})`;
-        }).join(' + ');
-        detalle += `<br>&nbsp;&nbsp;${crit}: ${pesoCrit.toFixed(4)} × [${subDetalle}]`;
-      });
-      finalTexto += `<li><strong>${alt}</strong>:${detalle}<br>= <strong>${puntajesFinales[i].toFixed(4)}</strong></li>`;
+      finalTexto += `<li><strong>${alt}</strong>: <strong>${puntajesFinales[i].toFixed(4)}</strong></li>`;
     });
     finalTexto += '</ul>';
     resultadosDiv.innerHTML = finalTexto;
-
-    // Botón exportar a Excel
-    excelDescarga.innerHTML = `<button class="btn btn-success mt-3" id="btnExportarExcel">Exportar a Excel</button>`;
-    document.getElementById('btnExportarExcel').onclick = async function () {
-      const payload = {
-        criterios,
-        alternativas,
-        matrizCriterios: matrix,
-        matrizAlternativas: Object.values(pesosAlternativasPorSubcriterio),
-        pesosCriterios,
-        resultadoFinal: puntajesFinales
-      };
-      const response = await fetch('/exportarAHP', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      if (response.ok) {
-        const blob = await response.blob();
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = 'AHP_Resultados.xlsx';
-        link.click();
-      }
-    };
     explicacionAlternativas.innerHTML = '';
     return;
   }
@@ -535,14 +576,6 @@ calcularBtn.addEventListener('click', async function () {
     const expl = document.getElementById(`explicacion_alt_${cIndex}`);
     if (expl) expl.innerHTML = paso;
 
-    // Detalle de procedimiento para cada alternativa
-    let detalle = `<strong>Procedimiento:</strong><br>`;
-    alternativas.forEach((alt, aidx) => {
-      detalle += `<b>${alt}:</b> (${norm[aidx].map((v, j) => v.toFixed(3)).join(' + ')}) / ${alternativas.length} = <b>${pesos[aidx].toFixed(4)}</b><br>`;
-    });
-    const detDiv = document.getElementById(`detalle_alt_${cIndex}`);
-    if (detDiv) detDiv.innerHTML = detalle;
-
     return pesos;
   });
 
@@ -561,33 +594,73 @@ calcularBtn.addEventListener('click', async function () {
   });
   finalTexto += '</ul>';
   resultadosDiv.innerHTML = finalTexto;
-
-  // Botón exportar a Excel
-  excelDescarga.innerHTML = `<button class="btn btn-success mt-3" id="btnExportarExcel">Exportar a Excel</button>`;
-  document.getElementById('btnExportarExcel').onclick = async function () {
-    const payload = {
-      criterios,
-      alternativas,
-      matrizCriterios: matrix,
-      matrizAlternativas: pesosAlternativasPorCriterio,
-      pesosCriterios,
-      resultadoFinal: puntajesFinales
-    };
-    const response = await fetch('/exportarAHP', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-    if (response.ok) {
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = 'AHP_Resultados.xlsx';
-      link.click();
-    }
-  };
   explicacionAlternativas.innerHTML = '';
+});
+
+// Importar datos desde Excel
+document.getElementById('importarExcel').addEventListener('change', function (e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function (evt) {
+    const data = evt.target.result;
+    const workbook = XLSX.read(data, { type: 'binary' });
+
+    // 1. Leer criterios
+    const criteriosSheet = workbook.Sheets['Criterios'];
+    const criteriosRow = XLSX.utils.sheet_to_json(criteriosSheet, { header: 1 })[0] || [];
+    const criteriosArr = criteriosRow.slice(1);
+
+    // 2. Leer alternativas
+    const alternativasSheet = workbook.Sheets['Alternativas'];
+    const alternativasRow = XLSX.utils.sheet_to_json(alternativasSheet, { header: 1 })[0] || [];
+    const alternativasArr = alternativasRow.slice(1);
+
+    // 3. Rellenar el formulario de criterios y alternativas
+    document.getElementById('numCriterios').value = criteriosArr.length;
+    document.getElementById('numAlternativas').value = alternativasArr.length;
+    configForm.dispatchEvent(new Event('submit'));
+
+    setTimeout(() => {
+      // Rellenar nombres
+      criteriosArr.forEach((c, i) => {
+        document.querySelector(`[name=criterio${i}]`).value = c;
+      });
+      alternativasArr.forEach((a, i) => {
+        document.querySelector(`[name=alternativa${i}]`).value = a;
+      });
+      datosForm.dispatchEvent(new Event('submit'));
+
+      setTimeout(() => {
+        // 4. Matriz de criterios
+        const matrizSheet = workbook.Sheets['MatrizCriterios'];
+        const matriz = XLSX.utils.sheet_to_json(matrizSheet, { header: 1 });
+        for (let i = 0; i < criteriosArr.length; i++) {
+          for (let j = 0; j < criteriosArr.length; j++) {
+            const val = matriz[i + 1][j + 1]; // omite encabezados
+            const sel = document.querySelector(`[name=comp_${i}_${j}]`);
+            if (sel) sel.value = val;
+          }
+        }
+
+        // 5. Matrices de alternativas por criterio
+        for (let c = 0; c < criteriosArr.length; c++) {
+          const sheetName = `MatrizAlternativas_${criteriosArr[c]}`;
+          const altSheet = workbook.Sheets[sheetName];
+          if (!altSheet) continue;
+          const altMatrix = XLSX.utils.sheet_to_json(altSheet, { header: 1 });
+          for (let i = 0; i < alternativasArr.length; i++) {
+            for (let j = 0; j < alternativasArr.length; j++) {
+              const val = altMatrix[i + 1][j + 1];
+              const sel = document.querySelector(`[name=alt_${c}_${i}_${j}]`);
+              if (sel) sel.value = val;
+            }
+          }
+        }
+      }, 500);
+    }, 500);
+  };
+  reader.readAsBinaryString(file);
 });
 
 // Botón para limpiar todo y reiniciar el análisis
