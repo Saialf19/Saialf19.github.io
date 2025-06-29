@@ -26,11 +26,6 @@
     </div>
     <button type="submit" class="btn btn-primary">Generar formulario</button>
   </form>
-  <!-- Botón para importar Excel -->
-  <div class="mt-3 mb-3">
-    <label for="importarExcel" class="form-label"><strong>Importar datos desde Excel</strong></label>
-    <input type="file" id="importarExcel" class="form-control" accept=".xlsx,.xls" />
-  </div>
 
   <!-- Formulario para ingresar nombres de criterios y alternativas -->
   <form id="datos-form" class="mt-4 d-none"></form>
@@ -548,6 +543,19 @@ calcularBtn.addEventListener('click', function () {
     });
     finalTexto += '</ul>';
     resultadosDiv.innerHTML = finalTexto;
+
+    // Botón exportar a Excel
+    excelDescarga.innerHTML = `<button class="btn btn-success mt-3" id="btnExportarExcel">Exportar a Excel</button>`;
+    document.getElementById('btnExportarExcel').onclick = function () {
+      exportarAExcel({
+        criterios,
+        alternativas,
+        subcriteriosPorCriterio,
+        pesosCriterios,
+        puntajesFinales
+      });
+    };
+
     explicacionAlternativas.innerHTML = '';
     return;
   }
@@ -598,74 +606,61 @@ calcularBtn.addEventListener('click', function () {
   });
   finalTexto += '</ul>';
   resultadosDiv.innerHTML = finalTexto;
+
+  // Botón exportar a Excel
+  excelDescarga.innerHTML = `<button class="btn btn-success mt-3" id="btnExportarExcel">Exportar a Excel</button>`;
+  document.getElementById('btnExportarExcel').onclick = function () {
+    exportarAExcel({
+      criterios,
+      alternativas,
+      pesosCriterios,
+      puntajesFinales
+    });
+  };
+
   explicacionAlternativas.innerHTML = '';
 });
 
-// Importar datos desde Excel
-document.getElementById('importarExcel').addEventListener('change', function (e) {
-  const file = e.target.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = function (evt) {
-    const data = evt.target.result;
-    const workbook = XLSX.read(data, { type: 'binary' });
+// Exportar a Excel usando SheetJS
+function exportarAExcel(datos) {
+  const wb = XLSX.utils.book_new();
 
-    // 1. Leer criterios
-    const criteriosSheet = workbook.Sheets['Criterios'];
-    const criteriosRow = XLSX.utils.sheet_to_json(criteriosSheet, { header: 1 })[0] || [];
-    const criteriosArr = criteriosRow.slice(1);
+  // Hoja de criterios
+  if (datos.criterios) {
+    const wsCriterios = XLSX.utils.aoa_to_sheet([['Criterios', ...datos.criterios]]);
+    XLSX.utils.book_append_sheet(wb, wsCriterios, 'Criterios');
+  }
+  // Hoja de alternativas
+  if (datos.alternativas) {
+    const wsAlternativas = XLSX.utils.aoa_to_sheet([['Alternativas', ...datos.alternativas]]);
+    XLSX.utils.book_append_sheet(wb, wsAlternativas, 'Alternativas');
+  }
+  // Hoja de pesos de criterios
+  if (datos.pesosCriterios) {
+    const wsPesosCriterios = XLSX.utils.aoa_to_sheet([
+      ['Criterio', 'Peso'],
+      ...datos.criterios.map((c, i) => [c, datos.pesosCriterios[i]])
+    ]);
+    XLSX.utils.book_append_sheet(wb, wsPesosCriterios, 'PesosCriterios');
+  }
+  // Hoja de subcriterios (si existen)
+  if (datos.subcriteriosPorCriterio) {
+    Object.entries(datos.subcriteriosPorCriterio).forEach(([crit, subs]) => {
+      const ws = XLSX.utils.aoa_to_sheet([['Subcriterios', ...subs]]);
+      XLSX.utils.book_append_sheet(wb, ws, `Subcriterios_${crit}`);
+    });
+  }
+  // Hoja de resultados finales
+  if (datos.puntajesFinales) {
+    const wsResultados = XLSX.utils.aoa_to_sheet([
+      ['Alternativa', 'Puntaje'],
+      ...datos.alternativas.map((a, i) => [a, datos.puntajesFinales[i]])
+    ]);
+    XLSX.utils.book_append_sheet(wb, wsResultados, 'Resultados');
+  }
 
-    // 2. Leer alternativas
-    const alternativasSheet = workbook.Sheets['Alternativas'];
-    const alternativasRow = XLSX.utils.sheet_to_json(alternativasSheet, { header: 1 })[0] || [];
-    const alternativasArr = alternativasRow.slice(1);
-
-    // 3. Rellenar el formulario de criterios y alternativas
-    document.getElementById('numCriterios').value = criteriosArr.length;
-    document.getElementById('numAlternativas').value = alternativasArr.length;
-    configForm.dispatchEvent(new Event('submit'));
-
-    setTimeout(() => {
-      // Rellenar nombres
-      criteriosArr.forEach((c, i) => {
-        document.querySelector(`[name=criterio${i}]`).value = c;
-      });
-      alternativasArr.forEach((a, i) => {
-        document.querySelector(`[name=alternativa${i}]`).value = a;
-      });
-      datosForm.dispatchEvent(new Event('submit'));
-
-      setTimeout(() => {
-        // 4. Matriz de criterios
-        const matrizSheet = workbook.Sheets['MatrizCriterios'];
-        const matriz = XLSX.utils.sheet_to_json(matrizSheet, { header: 1 });
-        for (let i = 0; i < criteriosArr.length; i++) {
-          for (let j = 0; j < criteriosArr.length; j++) {
-            const val = matriz[i + 1][j + 1]; // omite encabezados
-            const sel = document.querySelector(`[name=comp_${i}_${j}]`);
-            if (sel) sel.value = val;
-          }
-        }
-
-        // 5. Matrices de alternativas por criterio
-        for (let c = 0; c < criteriosArr.length; c++) {
-          const sheetName = `MatrizAlternativas_${criteriosArr[c]}`;
-          const altSheet = workbook.Sheets[sheetName];
-          if (!altSheet) continue;
-          const altMatrix = XLSX.utils.sheet_to_json(altSheet, { header: 1 });
-          for (let i = 0; i < alternativasArr.length; i++) {
-            for (let j = 0; j < alternativasArr.length; j++) {
-              const val = altMatrix[i + 1][j + 1];
-              const sel = document.querySelector(`[name=alt_${c}_${i}_${j}]`);
-              if (sel) sel.value = val;
-            }
-          }
-        }
-      }, 500);
-    }, 500);
-  };
-  reader.readAsBinaryString(file);
-});
+  XLSX.writeFile(wb, 'AHP_Resultados.xlsx');
+}
 
 // Botón para limpiar todo y reiniciar el análisis
 limpiarBtn.addEventListener('click', function () {
