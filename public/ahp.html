@@ -252,10 +252,6 @@ function generarMatricesSubcriterios() {
       for (let j = 0; j < subs.length; j++) {
         if (i === j) {
           html += `<td><input class="form-control" value="1" disabled /></td>`;
-        } else if (i < j) {
-          html += `<td><select class="form-select" name="subcomp_${idx}_${i}_${j}">${allowedValues.map(val =>
-            `<option value="${val}">${val === 1 ? '1 (Igual)' : val < 1 ? `1/${Math.round(1/val)}` : val}</option>`
-          ).join('')}</select></td>`;
         } else {
           html += `<td><select class="form-select" name="subcomp_${idx}_${i}_${j}">${allowedValues.map(val =>
             `<option value="${val}">${val === 1 ? '1 (Igual)' : val < 1 ? `1/${Math.round(1/val)}` : val}</option>`
@@ -266,6 +262,27 @@ function generarMatricesSubcriterios() {
     }
     html += `</tbody></table><div class='ahp-step' id='explicacion_sub_${idx}'></div></div>`;
     matricesSubcriterios.innerHTML += html;
+  });
+
+  // Agrega reciprocidad automática
+  criterios.forEach((crit, idx) => {
+    const subs = subcriteriosPorCriterio[crit];
+    for (let i = 0; i < subs.length; i++) {
+      for (let j = 0; j < subs.length; j++) {
+        if (i < j) {
+          const select = document.querySelector(`[name=subcomp_${idx}_${i}_${j}]`);
+          if (select) {
+            select.addEventListener('change', function () {
+              const recVal = 1 / parseFloat(this.value);
+              const oppSelect = document.querySelector(`[name=subcomp_${idx}_${j}_${i}]`);
+              if (oppSelect) {
+                oppSelect.value = recVal;
+              }
+            });
+          }
+        }
+      }
+    }
   });
 }
 
