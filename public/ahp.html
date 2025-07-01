@@ -313,7 +313,7 @@ function generarMatricesAlternativasSub() {
           const td = document.createElement('td');
           if (i === j) {
             td.innerHTML = '<input class="form-control" value="1" disabled />';
-          } else if (i < j) {
+          } else {
             const select = document.createElement('select');
             select.name = `altsub_${cidx}_${sidx}_${i}_${j}`;
             select.className = 'form-select';
@@ -332,18 +332,7 @@ function generarMatricesAlternativasSub() {
               }
             });
             td.appendChild(select);
-          } else {
-            const select = document.createElement('select');
-            select.name = `altsub_${cidx}_${sidx}_${i}_${j}`;
-            select.className = 'form-select';
-            allowedValues.forEach(val => {
-              const option = document.createElement('option');
-              option.value = val;
-              option.text = val === 1 ? '1 (Igual)' : val < 1 ? `1/${Math.round(1/val)}` : val;
-              select.appendChild(option);
-            });
-            select.value = 1;
-            td.appendChild(select);
+            
           }
           row.appendChild(td);
         }
@@ -382,7 +371,7 @@ function generarMatricesAlternativasClasico() {
         const td = document.createElement('td');
         if (i === j) {
           td.innerHTML = '<input class="form-control" value="1" disabled />';
-        } else if (i < j) {
+        } else {
           const select = document.createElement('select');
           select.name = `alt_${index}_${i}_${j}`;
           select.className = 'form-select';
@@ -401,19 +390,8 @@ function generarMatricesAlternativasClasico() {
             }
           });
           td.appendChild(select);
-        } else {
-          const select = document.createElement('select');
-          select.name = `alt_${index}_${i}_${j}`;
-          select.className = 'form-select';
-          allowedValues.forEach(val => {
-            const option = document.createElement('option');
-            option.value = val;
-            option.text = val === 1 ? '1 (Igual)' : val < 1 ? `1/${Math.round(1/val)}` : val;
-            select.appendChild(option);
-          });
-          select.value = 1;
-          td.appendChild(select);
         }
+        
         row.appendChild(td);
       }
       tbody.appendChild(row);
