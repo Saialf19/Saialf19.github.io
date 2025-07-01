@@ -296,6 +296,7 @@ function generarMatricesAlternativasSub() {
       const div = document.createElement('div');
       div.className = 'mt-4';
       div.innerHTML = `<h5>Comparación de alternativas para: <b>${sub}</b> (${crit})</h5>`;
+
       const table = document.createElement('table');
       table.className = 'table table-bordered';
 
@@ -306,67 +307,47 @@ function generarMatricesAlternativasSub() {
       table.appendChild(thead);
 
       const tbody = document.createElement('tbody');
-      for (let i = 0; i < alternativas.length; i++) {
-      const row = document.createElement('tr');
-      row.innerHTML = `<th>${alternativas[i]}</th>`;
-      for (let j = 0; j < alternativas.length; j++) {
-        const td = document.createElement('td');
-        if (i === j) {
-          td.innerHTML = '<input class="form-control" value="1" disabled />';
-        } else if (i < j) {
-          const select = document.createElement('select');
-          select.name = `altsub_${cidx}_${sidx}_${i}_${j}`;
-          select.className = 'form-select';
-          allowedValues.forEach(val => {
-            const option = document.createElement('option');
-            option.value = val;
-            option.text = val === 1 ? '1 (Igual)' : val < 1 ? `1/${Math.round(1/val)}` : val;
-            select.appendChild(option);
-          });
-          select.value = 1;
-          select.addEventListener('change', function () {
-            const selectedVal = parseFloat(this.value);
-            const recVal = 1 / selectedVal;
-            const oppSelect = document.querySelector(`[name=alt_${index}_${j}_${i}]`);
-            if (oppSelect) {
-              let matched = false;
-              for (const opt of oppSelect.options) {
-                const optVal = parseFloat(opt.value);
-                if (Math.abs(optVal - recVal) < 0.001) {
-                  oppSelect.value = opt.value;
-                  matched = true;
-                  break;
-                }
-              }
 
-              // Si no encontró una opción exacta, agregamos una nueva opción con el valor recíproco
-              if (!matched) {
-                const newOption = document.createElement("option");
-                newOption.value = recVal.toFixed(3); // valor como string
-                newOption.text = recVal.toFixed(3);  // lo que se muestra
-                oppSelect.appendChild(newOption);
-                oppSelect.value = newOption.value;
+      for (let i = 0; i < alternativas.length; i++) {
+        const row = document.createElement('tr');
+        row.innerHTML = `<th>${alternativas[i]}</th>`;
+
+        for (let j = 0; j < alternativas.length; j++) {
+          const td = document.createElement('td');
+
+          if (i === j) {
+            td.innerHTML = '<input class="form-control" value="1" disabled />';
+          } else {
+            const select = document.createElement('select');
+            select.name = `altsub_${cidx}_${sidx}_${i}_${j}`;
+            select.className = 'form-select';
+
+            allowedValues.forEach(val => {
+              const option = document.createElement('option');
+              option.value = val;
+              option.text = val === 1 ? '1 (Igual)' : val < 1 ? `1/${Math.round(1 / val)}` : val;
+              select.appendChild(option);
+            });
+
+            select.value = 1;
+
+            select.addEventListener('change', function () {
+              const recVal = 1 / parseFloat(this.value);
+              const oppSelect = document.querySelector(`[name=altsub_${cidx}_${sidx}_${j}_${i}]`);
+              if (oppSelect) {
+                oppSelect.value = recVal;
               }
-            }
-          });
-          td.appendChild(select);
-        } else {
-          const select = document.createElement('select');
-          select.name = `altsub_${cidx}_${sidx}_${i}_${j}`;
-          select.className = 'form-select';
-          allowedValues.forEach(val => {
-            const option = document.createElement('option');
-            option.value = val;
-            option.text = val === 1 ? '1 (Igual)' : val < 1 ? `1/${Math.round(1/val)}` : val;
-            select.appendChild(option);
-          });
-          select.value = 1;
-          td.appendChild(select);
+            });
+
+            td.appendChild(select);
+          }
+
+          row.appendChild(td);
         }
-        row.appendChild(td);
+
+        tbody.appendChild(row);
       }
-      tbody.appendChild(row);
-    }
+
       table.appendChild(tbody);
       div.appendChild(table);
       div.innerHTML += `<div class='ahp-step' id='explicacion_altsub_${cidx}_${sidx}'></div>`;
@@ -374,6 +355,7 @@ function generarMatricesAlternativasSub() {
     });
   });
 }
+
 
 // --- MATRICES DE ALTERNATIVAS CLÁSICO (sin subcriterios) ---
 function generarMatricesAlternativasClasico() {
@@ -400,7 +382,7 @@ function generarMatricesAlternativasClasico() {
         const td = document.createElement('td');
         if (i === j) {
           td.innerHTML = '<input class="form-control" value="1" disabled />';
-        } else if (i < j) {
+        } else {
           const select = document.createElement('select');
           select.name = `alt_${index}_${i}_${j}`;
           select.className = 'form-select';
@@ -424,19 +406,8 @@ function generarMatricesAlternativasClasico() {
             }
           });
           td.appendChild(select);
-        } else {
-          const select = document.createElement('select');
-          select.name = `alt_${index}_${i}_${j}`;
-          select.className = 'form-select';
-          allowedValues.forEach(val => {
-            const option = document.createElement('option');
-            option.value = val;
-            option.text = val === 1 ? '1 (Igual)' : val < 1 ? `1/${Math.round(1 / val)}` : val;
-            select.appendChild(option);
-          });
-          select.value = 1;
-          td.appendChild(select);
         }
+        
         row.appendChild(td);
       }
       tbody.appendChild(row);
