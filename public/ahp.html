@@ -397,7 +397,12 @@ function generarMatricesAlternativasClasico() {
             const recVal = 1 / parseFloat(this.value);
             const oppSelect = document.querySelector(`[name=alt_${index}_${j}_${i}]`);
             if (oppSelect) {
-              oppSelect.value = recVal;
+              for (const opt of oppSelect.options) {
+                if (Math.abs(parseFloat(opt.value) - recVal) < 0.0001) {
+                  oppSelect.value = opt.value;
+                  break;
+                }
+              }
             }
           });
           td.appendChild(select);
