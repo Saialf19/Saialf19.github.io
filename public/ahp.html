@@ -325,10 +325,28 @@ function generarMatricesAlternativasSub() {
           });
           select.value = 1;
           select.addEventListener('change', function () {
-            const recVal = 1 / parseFloat(this.value);
-            const oppSelect = document.querySelector(`[name=altsub_${cidx}_${sidx}_${j}_${i}]`);
+            const selectedVal = parseFloat(this.value);
+            const recVal = 1 / selectedVal;
+            const oppSelect = document.querySelector(`[name=alt_${index}_${j}_${i}]`);
             if (oppSelect) {
-              oppSelect.value = recVal;
+              let matched = false;
+              for (const opt of oppSelect.options) {
+                const optVal = parseFloat(opt.value);
+                if (Math.abs(optVal - recVal) < 0.001) {
+                  oppSelect.value = opt.value;
+                  matched = true;
+                  break;
+                }
+              }
+
+              // Si no encontró una opción exacta, agregamos una nueva opción con el valor recíproco
+              if (!matched) {
+                const newOption = document.createElement("option");
+                newOption.value = recVal.toFixed(3); // valor como string
+                newOption.text = recVal.toFixed(3);  // lo que se muestra
+                oppSelect.appendChild(newOption);
+                oppSelect.value = newOption.value;
+              }
             }
           });
           td.appendChild(select);
