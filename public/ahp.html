@@ -638,38 +638,100 @@ calcularBtn.addEventListener('click', function () {
 function exportarAExcel(datos) {
   const wb = XLSX.utils.book_new();
 
-  // Hoja de criterios
-  if (datos.criterios) {
-    const wsCriterios = XLSX.utils.aoa_to_sheet([['Criterios', ...datos.criterios]]);
-    XLSX.utils.book_append_sheet(wb, wsCriterios, 'Criterios');
+  // Hoja: Matriz de comparación de criterios
+  if (datos.matrizCriterios) {
+    const matrizC = [['', ...datos.criterios]];
+    datos.criterios.forEach((c, i) => {
+      matrizC.push([c, ...datos.matrizCriterios[i]]);
+    });
+    const wsMatC = XLSX.utils.aoa_to_sheet(matrizC);
+    XLSX.utils.book_append_sheet(wb, wsMatC, 'Matriz_Criterios');
   }
-  // Hoja de alternativas
-  if (datos.alternativas) {
-    const wsAlternativas = XLSX.utils.aoa_to_sheet([['Alternativas', ...datos.alternativas]]);
-    XLSX.utils.book_append_sheet(wb, wsAlternativas, 'Alternativas');
-  }
-  // Hoja de pesos de criterios
+
+  // Hoja: Pesos de criterios
   if (datos.pesosCriterios) {
     const wsPesosCriterios = XLSX.utils.aoa_to_sheet([
       ['Criterio', 'Peso'],
       ...datos.criterios.map((c, i) => [c, datos.pesosCriterios[i]])
     ]);
-    XLSX.utils.book_append_sheet(wb, wsPesosCriterios, 'PesosCriterios');
+    XLSX.utils.book_append_sheet(wb, wsPesosCriterios, 'Pesos_Criterios');
   }
-  // Hoja de subcriterios (si existen)
+
+  // Si hay subcriterios
   if (datos.subcriteriosPorCriterio) {
-    Object.entries(datos.subcriteriosPorCriterio).forEach(([crit, subs]) => {
-      const ws = XLSX.utils.aoa_to_sheet([['Subcriterios', ...subs]]);
-      XLSX.utils.book_append_sheet(wb, ws, `Subcriterios_${crit}`);
+    Object.entries(datos.subcriteriosPorCriterio).forEach(([crit, subcritList]) => {
+      const wsSub = XLSX.utils.aoa_to_sheet([['Subcriterios', ...subcritList]]);
+      XLSX.utils.book_append_sheet(wb, wsSub, `Subcriterios_${crit}`);
+
+      // Matriz de subcriterios
+      if (datos.matricesSubcriterios && datos.matricesSubcriterios[crit]) {
+        const matrizSub = [['', ...subcritList]];
+        subcritList.forEach((s, i) => {
+          matrizSub.push([s, ...datos.matricesSubcriterios[crit][i]]);
+        });
+        const wsMatSub = XLSX.utils.aoa_to_sheet(matrizSub);
+        XLSX.utils.book_append_sheet(wb, wsMatSub, `MatrizSub_${crit}`);
+      }
+
+      // Pesos subcriterios
+      if (datos.pesosSubcriterios && datos.pesosSubcriterios[crit]) {
+        const wsPesosSub = XLSX.utils.aoa_to_sheet([
+          ['Subcriterio', 'Peso'],
+          ...subcritList.map((s, i) => [s, datos.pesosSubcriterios[crit][i]])
+        ]);
+        XLSX.utils.book_append_sheet(wb, wsPesosSub, `PesosSub_${crit}`);
+      }
+
+      // Alternativas por subcriterio
+      subcritList.forEach((sub, i) => {
+        const key = `${crit}_${i}`;
+        if (datos.matricesAlternativasSub && datos.matricesAlternativasSub[key]) {
+          const matrizAlt = [['', ...datos.alternativas]];
+          datos.alternativas.forEach((alt, aidx) => {
+            matrizAlt.push([alt, ...datos.matricesAlternativasSub[key][aidx]]);
+          });
+          const wsMatAlt = XLSX.utils.aoa_to_sheet(matrizAlt);
+          XLSX.utils.book_append_sheet(wb, wsMatAlt, `Alt_${crit}_${sub}`);
+
+          if (datos.pesosAlternativasSub && datos.pesosAlternativasSub[key]) {
+            const wsPesosAlt = XLSX.utils.aoa_to_sheet([
+              ['Alternativa', 'Peso'],
+              ...datos.alternativas.map((a, ai) => [a, datos.pesosAlternativasSub[key][ai]])
+            ]);
+            XLSX.utils.book_append_sheet(wb, wsPesosAlt, `PesosAlt_${sub}`);
+          }
+        }
+      });
     });
+  } else {
+    // Sin subcriterios: Matrices de alternativas por criterio
+    if (datos.matricesAlternativas) {
+      datos.criterios.forEach((crit, i) => {
+        const matrizAlt = [['', ...datos.alternativas]];
+        datos.alternativas.forEach((alt, j) => {
+          matrizAlt.push([alt, ...datos.matricesAlternativas[i][j]]);
+        });
+        const wsMatAlt = XLSX.utils.aoa_to_sheet(matrizAlt);
+        XLSX.utils.book_append_sheet(wb, wsMatAlt, `Alt_${crit}`);
+
+        if (datos.pesosAlternativas && datos.pesosAlternativas[i]) {
+          const wsPesosAlt = XLSX.utils.aoa_to_sheet([
+            ['Alternativa', 'Peso'],
+            ...datos.alternativas.map((a, ai) => [a, datos.pesosAlternativas[i][ai]])
+          ]);
+          XLSX.utils.book_append_sheet(wb, wsPesosAlt, `PesosAlt_${crit}`);
+        }
+      });
+    }
   }
-  // Hoja de resultados finales
+
+  // Resultado final
   if (datos.puntajesFinales) {
     const wsResultados = XLSX.utils.aoa_to_sheet([
       ['Alternativa', 'Puntaje'],
       ...datos.alternativas.map((a, i) => [a, datos.puntajesFinales[i]])
     ]);
-    XLSX.utils.book_append_sheet(wb, wsResultados, 'Resultados');
+    XLSX.utils.book_append_sheet(wb, wsResultados, 'Resultado_Final');
   }
 
   XLSX.writeFile(wb, 'AHP_Resultados.xlsx');
