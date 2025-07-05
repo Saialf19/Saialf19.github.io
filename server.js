@@ -50,105 +50,110 @@ app.post('/guardarDatosDinamicos', async (req, res) => {
 
 app.post('/exportarAHP', async (req, res) => {
   try {
-    console.log("📥 Datos recibidos en /exportarAHP:");
-    console.log(JSON.stringify(req.body, null, 2)); // Depuración
-
+    // Validar que se reciban todos los datos necesarios
     const {
       criterios,
       alternativas,
       matrizCriterios,
       pesosCriterios,
-      subcriteriosPorCriterio,
-      matricesSubcriterios,
-      pesosSubcriteriosPorCriterio,
-      matricesAlternativas,
-      pesosAlternativasPorSubcriterio,
-      pesosAlternativasPorCriterio,
-      resultadoFinal
+      resultadoFinal,
+      pesosAlternativasPorCriterio
     } = req.body;
 
     if (!criterios || !alternativas || !matrizCriterios || !pesosCriterios || !resultadoFinal) {
-      return res.status(400).send("❌ Faltan datos esenciales para generar el Excel.");
+      return res.status(400).send("Faltan datos esenciales.");
     }
 
     const workbook = new ExcelJS.Workbook();
-    const hoja = workbook.addWorksheet('AHP Completo');
+    // Solo UNA hoja para todo
+    const hoja = workbook.addWorksheet('AHP Dinámico');
 
-    // --- MATRIZ DE CRITERIOS ---
+    // 1) Matriz de comparación de criterios
     hoja.addRow(['Matriz de comparación de criterios']);
     hoja.addRow(['', ...criterios]);
-    matrizCriterios.forEach((row, i) => {
-      hoja.addRow([criterios[i], ...row]);
+    matrizCriterios.forEach((fila, i) => {
+      hoja.addRow([criterios[i], ...fila]);
     });
-    hoja.addRow([]);
 
-    // Suma columnas
-    const colSums = Array(criterios.length).fill(0);
-    for (let j = 0; j < criterios.length; j++)
-      for (let i = 0; i < criterios.length; i++)
-        colSums[j] += matrizCriterios[i][j];
-    hoja.addRow(['Suma columnas', ...colSums.map(x => Number(x.toFixed(4)))]);
-    hoja.addRow([]);
-
-    // Matriz normalizada
-    const normMatrix = matrizCriterios.map(row =>
-      row.map((val, j) => val / colSums[j])
+    // 2) Suma columnas
+    const sumaCols = criterios.map((_, j) =>
+      matrizCriterios.reduce((sum, fila) => sum + fila[j], 0)
     );
+    hoja.addRow([]);
+    hoja.addRow(['Suma columnas', ...sumaCols.map(x => Number(x.toFixed(4)))]);
+
+    // 3) Matriz normalizada
+    hoja.addRow([]);
     hoja.addRow(['Matriz normalizada']);
     hoja.addRow(['', ...criterios]);
-    normMatrix.forEach((row, i) => {
-      hoja.addRow([criterios[i], ...row.map(x => Number(x.toFixed(4)))]);
-    });
-    hoja.addRow([]);
-
-    // Pesos (vector de autoridad)
-    hoja.addRow(['Pesos (vector de autoridad)', ...pesosCriterios.map(x => Number(x.toFixed(4)))]);
-    hoja.addRow([]);
-
-    // Vector A·w
-    const Aw = matrizCriterios.map(row =>
-      row.reduce((sum, val, j) => sum + val * pesosCriterios[j], 0)
+    const matrizNorm = matrizCriterios.map(fila =>
+      fila.map((v, j) => v / sumaCols[j])
     );
+    matrizNorm.forEach((fila, i) => {
+      hoja.addRow([criterios[i], ...fila.map(x => Number(x.toFixed(4)))]);
+    });
+
+    // 4) Pesos (vector de autoridad)
+    hoja.addRow([]);
+    hoja.addRow(['Pesos (vector de autoridad)', ...pesosCriterios.map(x => Number(x.toFixed(4)))]);
+
+    // 5) Vector A·w
+    const Aw = matrizCriterios.map(fila =>
+      fila.reduce((sum, v, j) => sum + v * pesosCriterios[j], 0)
+    );
+    hoja.addRow([]);
     hoja.addRow(['Vector A·w', ...Aw.map(x => Number(x.toFixed(4)))]);
 
-    const Aw_div_w = Aw.map((val, i) => val / pesosCriterios[i]);
-    hoja.addRow(['Vector A·w / w', ...Aw_div_w.map(x => Number(x.toFixed(4)))]);
-    hoja.addRow([]);
-    
+    // 6) Vector A·w / w
+    const AwDivW = Aw.map((v, i) => v / pesosCriterios[i]);
+    hoja.addRow(['Vector A·w / w', ...AwDivW.map(x => Number(x.toFixed(4)))]);
 
-    const lambdaMax = Aw_div_w.reduce((a, b) => a + b, 0) / criterios.length;
+    // 7) Consistencia
+    const lambdaMax = AwDivW.reduce((a,b) => a + b, 0) / criterios.length;
     const IC = (lambdaMax - criterios.length) / (criterios.length - 1);
-    const RI_VALUES = {
-      1: 0.00, 2: 0.00, 3: 0.58, 4: 0.90, 5: 1.12, 6: 1.24, 7: 1.32, 8: 1.41, 9: 1.45, 10: 1.49
-    };
-    const RI = RI_VALUES[criterios.length] || 1.49;
+    const RI_VALUES = {1:0,2:0,3:0.58,4:0.90,5:1.12,6:1.24,7:1.32,8:1.41,9:1.45};
+    const RI = RI_VALUES[criterios.length] ?? 1.49;
     const RC = RI === 0 ? 0 : IC / RI;
-    hoja.addRow([`λ_max`, lambdaMax.toFixed(4)]);
-    hoja.addRow([`Índice de Consistencia (IC)`, IC.toFixed(4)]);
-    hoja.addRow([`Índice Aleatorio (RI)`, RI.toFixed(2)]);
-    hoja.addRow([`Razón de Consistencia (RC)`, RC.toFixed(4)]);
-    hoja.addRow([RC < 0.1 ? 'La matriz es consistente (RC < 0.1)' : 'La matriz NO es consistente (RC >= 0.1)']);
     hoja.addRow([]);
+    hoja.addRow(['λ_max', Number(lambdaMax.toFixed(4))]);
+    hoja.addRow(['Índice de Consistencia (IC)', Number(IC.toFixed(4))]);
+    hoja.addRow(['Índice Aleatorio (RI)', Number(RI.toFixed(2))]);
+    hoja.addRow(['Razón de Consistencia (RC)', Number(RC.toFixed(4))]);
+    hoja.addRow([RC < 0.1
+      ? 'La matriz es consistente (RC < 0.1)'
+      : 'La matriz NO es consistente (RC >= 0.1)']);
 
-    // Aquí puedes continuar como ya lo tenías para subcriterios y alternativas...
+    // 8) Pesos de alternativas por criterio
+    hoja.addRow([]);
+    Object.entries(pesosAlternativasPorCriterio).forEach(([crit, arrPesos]) => {
+      hoja.addRow([`Pesos de alternativas para el criterio: ${crit}`]);
+      hoja.addRow(['Alternativa', 'Peso']);
+      alternativas.forEach((alt, i) => {
+        hoja.addRow([alt, Number(arrPesos[i].toFixed(4))]);
+      });
+      hoja.addRow([]);
+    });
 
-    // Resultado final
+    // 9) Resultado final
     hoja.addRow(['Resultado Final']);
     hoja.addRow(['Alternativa', 'Puntaje']);
     alternativas.forEach((alt, i) => {
       hoja.addRow([alt, Number(resultadoFinal[i].toFixed(4))]);
     });
 
+    // Devolver XLSX
     const buffer = await workbook.xlsx.writeBuffer();
-    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', 'attachment; filename=AHP_Resultados.xlsx');
-    res.send(buffer);
+    res
+      .header('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+      .header('Content-Disposition', 'attachment; filename=AHP_Dinamico.xlsx')
+      .send(buffer);
 
   } catch (err) {
-    console.error('❌ Error al generar Excel:', err);
-    res.status(500).send('Error generando Excel');
+    console.error(err);
+    res.status(500).send("Error generando Excel dinámico");
   }
 });
+
 
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {

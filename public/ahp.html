@@ -557,17 +557,6 @@ calcularBtn.addEventListener('click', function () {
     finalTexto += '</ul>';
     resultadosDiv.innerHTML = finalTexto;
 
-    // Botón exportar a Excel
-    excelDescarga.innerHTML = `<button class="btn btn-success mt-3" id="btnExportarExcel">Exportar a Excel</button>`;
-    document.getElementById('btnExportarExcel').onclick = function () {
-      exportarAExcel({
-        criterios,
-        alternativas,
-        subcriteriosPorCriterio,
-        pesosCriterios,
-        puntajesFinales
-      });
-    };
 
     explicacionAlternativas.innerHTML = '';
     return;
@@ -621,15 +610,37 @@ calcularBtn.addEventListener('click', function () {
   resultadosDiv.innerHTML = finalTexto;
 
   // Botón exportar a Excel
-  excelDescarga.innerHTML = `<button class="btn btn-success mt-3" id="btnExportarExcel">Exportar a Excel</button>`;
-  document.getElementById('btnExportarExcel').onclick = function () {
-    exportarAExcel({
+  excelDescarga.innerHTML =`<button id="btnExportarExcel">Exportar a Excel</button>`;
+  document.getElementById('btnExportarExcel').onclick = async () => {
+    // Asume que ya tienes en tu scope estas variables:
+    // criterios, alternativas, matrizCriterios, pesosCriterios, resultadoFinal,
+    // y pesosAlternativasPorCriterio
+    const payload = {
       criterios,
       alternativas,
+      matrizCriterios,
       pesosCriterios,
-      puntajesFinales
+      resultadoFinal,
+      pesosAlternativasPorCriterio
+    };
+
+    const res = await fetch('/exportarAHP', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
     });
+    if (!res.ok) {
+      return alert('Error exportando Excel');
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'AHP_Dinamico.xlsx';
+    a.click();
+    URL.revokeObjectURL(url);
   };
+
 
   explicacionAlternativas.innerHTML = '';
 });
